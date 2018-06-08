@@ -63,7 +63,7 @@ class CartController extends Controller
         $cart->add($product, $product->id);
         $request->session()->put('cart', $cart);
         // $session = $request->session()->put('cart', $cart);
-        $getSession = $request->session()->get('cart');
+        $getSession = $request->session()->get('cart', $cart);
         // $data = $request->session()->all();
         // return $cart;
         dd($getSession);
