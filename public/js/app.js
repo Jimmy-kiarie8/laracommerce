@@ -65,6 +65,115 @@
 /************************************************************************/
 /******/ ([
 /* 0 */
+/***/ (function(module, exports) {
+
+/* globals __VUE_SSR_CONTEXT__ */
+
+// IMPORTANT: Do NOT use ES2015 features in this file.
+// This module is a runtime utility for cleaner component module output and will
+// be included in the final webpack user bundle.
+
+module.exports = function normalizeComponent (
+  rawScriptExports,
+  compiledTemplate,
+  functionalTemplate,
+  injectStyles,
+  scopeId,
+  moduleIdentifier /* server only */
+) {
+  var esModule
+  var scriptExports = rawScriptExports = rawScriptExports || {}
+
+  // ES6 modules interop
+  var type = typeof rawScriptExports.default
+  if (type === 'object' || type === 'function') {
+    esModule = rawScriptExports
+    scriptExports = rawScriptExports.default
+  }
+
+  // Vue.extend constructor export interop
+  var options = typeof scriptExports === 'function'
+    ? scriptExports.options
+    : scriptExports
+
+  // render functions
+  if (compiledTemplate) {
+    options.render = compiledTemplate.render
+    options.staticRenderFns = compiledTemplate.staticRenderFns
+    options._compiled = true
+  }
+
+  // functional template
+  if (functionalTemplate) {
+    options.functional = true
+  }
+
+  // scopedId
+  if (scopeId) {
+    options._scopeId = scopeId
+  }
+
+  var hook
+  if (moduleIdentifier) { // server build
+    hook = function (context) {
+      // 2.3 injection
+      context =
+        context || // cached call
+        (this.$vnode && this.$vnode.ssrContext) || // stateful
+        (this.parent && this.parent.$vnode && this.parent.$vnode.ssrContext) // functional
+      // 2.2 with runInNewContext: true
+      if (!context && typeof __VUE_SSR_CONTEXT__ !== 'undefined') {
+        context = __VUE_SSR_CONTEXT__
+      }
+      // inject component styles
+      if (injectStyles) {
+        injectStyles.call(this, context)
+      }
+      // register component module identifier for async chunk inferrence
+      if (context && context._registeredComponents) {
+        context._registeredComponents.add(moduleIdentifier)
+      }
+    }
+    // used by ssr in case component is cached and beforeCreate
+    // never gets called
+    options._ssrRegister = hook
+  } else if (injectStyles) {
+    hook = injectStyles
+  }
+
+  if (hook) {
+    var functional = options.functional
+    var existing = functional
+      ? options.render
+      : options.beforeCreate
+
+    if (!functional) {
+      // inject component registration as beforeCreate hook
+      options.beforeCreate = existing
+        ? [].concat(existing, hook)
+        : [hook]
+    } else {
+      // for template-only hot-reload because in that case the render fn doesn't
+      // go through the normalizer
+      options._injectStyles = hook
+      // register for functioal component in vue file
+      options.render = function renderWithStyleInjection (h, context) {
+        hook.call(context)
+        return existing(h, context)
+      }
+    }
+  }
+
+  return {
+    esModule: esModule,
+    exports: scriptExports,
+    options: options
+  }
+}
+
+
+/***/ }),
+/* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -374,143 +483,7 @@ module.exports = {
 
 
 /***/ }),
-/* 1 */
-/***/ (function(module, exports) {
-
-/* globals __VUE_SSR_CONTEXT__ */
-
-// IMPORTANT: Do NOT use ES2015 features in this file.
-// This module is a runtime utility for cleaner component module output and will
-// be included in the final webpack user bundle.
-
-module.exports = function normalizeComponent (
-  rawScriptExports,
-  compiledTemplate,
-  functionalTemplate,
-  injectStyles,
-  scopeId,
-  moduleIdentifier /* server only */
-) {
-  var esModule
-  var scriptExports = rawScriptExports = rawScriptExports || {}
-
-  // ES6 modules interop
-  var type = typeof rawScriptExports.default
-  if (type === 'object' || type === 'function') {
-    esModule = rawScriptExports
-    scriptExports = rawScriptExports.default
-  }
-
-  // Vue.extend constructor export interop
-  var options = typeof scriptExports === 'function'
-    ? scriptExports.options
-    : scriptExports
-
-  // render functions
-  if (compiledTemplate) {
-    options.render = compiledTemplate.render
-    options.staticRenderFns = compiledTemplate.staticRenderFns
-    options._compiled = true
-  }
-
-  // functional template
-  if (functionalTemplate) {
-    options.functional = true
-  }
-
-  // scopedId
-  if (scopeId) {
-    options._scopeId = scopeId
-  }
-
-  var hook
-  if (moduleIdentifier) { // server build
-    hook = function (context) {
-      // 2.3 injection
-      context =
-        context || // cached call
-        (this.$vnode && this.$vnode.ssrContext) || // stateful
-        (this.parent && this.parent.$vnode && this.parent.$vnode.ssrContext) // functional
-      // 2.2 with runInNewContext: true
-      if (!context && typeof __VUE_SSR_CONTEXT__ !== 'undefined') {
-        context = __VUE_SSR_CONTEXT__
-      }
-      // inject component styles
-      if (injectStyles) {
-        injectStyles.call(this, context)
-      }
-      // register component module identifier for async chunk inferrence
-      if (context && context._registeredComponents) {
-        context._registeredComponents.add(moduleIdentifier)
-      }
-    }
-    // used by ssr in case component is cached and beforeCreate
-    // never gets called
-    options._ssrRegister = hook
-  } else if (injectStyles) {
-    hook = injectStyles
-  }
-
-  if (hook) {
-    var functional = options.functional
-    var existing = functional
-      ? options.render
-      : options.beforeCreate
-
-    if (!functional) {
-      // inject component registration as beforeCreate hook
-      options.beforeCreate = existing
-        ? [].concat(existing, hook)
-        : [hook]
-    } else {
-      // for template-only hot-reload because in that case the render fn doesn't
-      // go through the normalizer
-      options._injectStyles = hook
-      // register for functioal component in vue file
-      options.render = function renderWithStyleInjection (h, context) {
-        hook.call(context)
-        return existing(h, context)
-      }
-    }
-  }
-
-  return {
-    esModule: esModule,
-    exports: scriptExports,
-    options: options
-  }
-}
-
-
-/***/ }),
 /* 2 */
-/***/ (function(module, exports) {
-
-var g;
-
-// This works in non-strict mode
-g = (function() {
-	return this;
-})();
-
-try {
-	// This works if eval is allowed (see CSP)
-	g = g || Function("return this")() || (1,eval)("this");
-} catch(e) {
-	// This works if the window reference is available
-	if(typeof window === "object")
-		g = window;
-}
-
-// g can still be undefined, but nothing to do about it...
-// We return undefined, instead of nothing here, so it's
-// easier to handle this case. if(!global) { ...}
-
-module.exports = g;
-
-
-/***/ }),
-/* 3 */
 /***/ (function(module, exports) {
 
 /*
@@ -589,6 +562,33 @@ function toComment(sourceMap) {
 
 	return '/*# ' + data + ' */';
 }
+
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports) {
+
+var g;
+
+// This works in non-strict mode
+g = (function() {
+	return this;
+})();
+
+try {
+	// This works if eval is allowed (see CSP)
+	g = g || Function("return this")() || (1,eval)("this");
+} catch(e) {
+	// This works if the window reference is available
+	if(typeof window === "object")
+		g = window;
+}
+
+// g can still be undefined, but nothing to do about it...
+// We return undefined, instead of nothing here, so it's
+// easier to handle this case. if(!global) { ...}
+
+module.exports = g;
 
 
 /***/ }),
@@ -826,7 +826,7 @@ function applyToTag (styleElement, obj) {
 "use strict";
 /* WEBPACK VAR INJECTION */(function(process) {
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 var normalizeHeaderName = __webpack_require__(24);
 
 var DEFAULT_CONTENT_TYPE = {
@@ -3450,7 +3450,7 @@ Popper.Defaults = Defaults;
 /* harmony default export */ __webpack_exports__["default"] = (Popper);
 //# sourceMappingURL=popper.js.map
 
-/* WEBPACK VAR INJECTION */}.call(__webpack_exports__, __webpack_require__(2)))
+/* WEBPACK VAR INJECTION */}.call(__webpack_exports__, __webpack_require__(3)))
 
 /***/ }),
 /* 7 */
@@ -14038,7 +14038,7 @@ process.umask = function() { return 0; };
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 var settle = __webpack_require__(25);
 var buildURL = __webpack_require__(27);
 var parseHeaders = __webpack_require__(28);
@@ -14286,7 +14286,7 @@ module.exports = Cancel;
 /***/ (function(module, exports, __webpack_require__) {
 
 __webpack_require__(15);
-module.exports = __webpack_require__(90);
+module.exports = __webpack_require__(107);
 
 
 /***/ }),
@@ -14330,12 +14330,14 @@ Vue.use(__WEBPACK_IMPORTED_MODULE_0_vue_router__["a" /* default */]);
  * or customize the JavaScript scaffolding to fit your unique needs.
  */
 
-var myView = __webpack_require__(48);
+var myView = __webpack_require__(109);
 var myBrand = __webpack_require__(54);
 var myCategory = __webpack_require__(65);
 var myProduct = __webpack_require__(79);
+var myUsers = __webpack_require__(90);
+var myprofile = __webpack_require__(104);
 
-var routes = [{ path: '/', component: myView }, { path: '/brands', component: myBrand }, { path: '/categories', component: myCategory }, { path: '/products', component: myProduct }];
+var routes = [{ path: '/', component: myView }, { path: '/brands', component: myBrand }, { path: '/categories', component: myCategory }, { path: '/products', component: myProduct }, { path: '/users', component: myUsers }, { path: '/profile', component: myprofile }];
 
 var router = new __WEBPACK_IMPORTED_MODULE_0_vue_router__["a" /* default */]({
   // mode: 'history',
@@ -14346,7 +14348,7 @@ var app = new Vue({
   el: '#app',
   router: router,
   components: {
-    myView: myView, myBrand: myBrand, myCategory: myCategory, myProduct: myProduct
+    myView: myView, myBrand: myBrand, myCategory: myCategory, myProduct: myProduct, myUsers: myUsers, myprofile: myprofile
   }
 });
 
@@ -31514,7 +31516,7 @@ if (token) {
   }
 }.call(this));
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(2), __webpack_require__(18)(module)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3), __webpack_require__(18)(module)))
 
 /***/ }),
 /* 18 */
@@ -35488,7 +35490,7 @@ module.exports = __webpack_require__(21);
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 var bind = __webpack_require__(8);
 var Axios = __webpack_require__(23);
 var defaults = __webpack_require__(5);
@@ -35575,7 +35577,7 @@ function isSlowBuffer (obj) {
 
 
 var defaults = __webpack_require__(5);
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 var InterceptorManager = __webpack_require__(32);
 var dispatchRequest = __webpack_require__(33);
 
@@ -35660,7 +35662,7 @@ module.exports = Axios;
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 
 module.exports = function normalizeHeaderName(headers, normalizedName) {
   utils.forEach(headers, function processHeader(value, name) {
@@ -35740,7 +35742,7 @@ module.exports = function enhanceError(error, config, code, request, response) {
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 
 function encode(val) {
   return encodeURIComponent(val).
@@ -35813,7 +35815,7 @@ module.exports = function buildURL(url, params, paramsSerializer) {
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 
 // Headers whose duplicates are ignored by node
 // c.f. https://nodejs.org/api/http.html#http_message_headers
@@ -35873,7 +35875,7 @@ module.exports = function parseHeaders(headers) {
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 
 module.exports = (
   utils.isStandardBrowserEnv() ?
@@ -35991,7 +35993,7 @@ module.exports = btoa;
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 
 module.exports = (
   utils.isStandardBrowserEnv() ?
@@ -36051,7 +36053,7 @@ module.exports = (
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 
 function InterceptorManager() {
   this.handlers = [];
@@ -36110,7 +36112,7 @@ module.exports = InterceptorManager;
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 var transformData = __webpack_require__(34);
 var isCancel = __webpack_require__(12);
 var defaults = __webpack_require__(5);
@@ -36203,7 +36205,7 @@ module.exports = function dispatchRequest(config) {
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(1);
 
 /**
  * Transform the data for a request or a response
@@ -47327,7 +47329,7 @@ Vue.compile = compileToFunctions;
 
 module.exports = Vue;
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(2), __webpack_require__(40).setImmediate))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3), __webpack_require__(40).setImmediate))
 
 /***/ }),
 /* 40 */
@@ -47397,7 +47399,7 @@ exports.clearImmediate = (typeof self !== "undefined" && self.clearImmediate) ||
                          (typeof global !== "undefined" && global.clearImmediate) ||
                          (this && this.clearImmediate);
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(2)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3)))
 
 /***/ }),
 /* 41 */
@@ -47590,7 +47592,7 @@ exports.clearImmediate = (typeof self !== "undefined" && self.clearImmediate) ||
     attachTo.clearImmediate = clearImmediate;
 }(typeof self === "undefined" ? typeof global === "undefined" ? this : global : self));
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(2), __webpack_require__(9)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3), __webpack_require__(9)))
 
 /***/ }),
 /* 42 */
@@ -67926,7 +67928,7 @@ if(false) {
 /* 45 */
 /***/ (function(module, exports, __webpack_require__) {
 
-exports = module.exports = __webpack_require__(3)(false);
+exports = module.exports = __webpack_require__(2)(false);
 // imports
 
 
@@ -68391,97 +68393,9 @@ module.exports = function (css) {
 
 
 /***/ }),
-/* 48 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var disposed = false
-function injectStyle (ssrContext) {
-  if (disposed) return
-  __webpack_require__(49)
-}
-var normalizeComponent = __webpack_require__(1)
-/* script */
-var __vue_script__ = __webpack_require__(52)
-/* template */
-var __vue_template__ = __webpack_require__(53)
-/* template functional */
-var __vue_template_functional__ = false
-/* styles */
-var __vue_styles__ = injectStyle
-/* scopeId */
-var __vue_scopeId__ = null
-/* moduleIdentifier (server only) */
-var __vue_module_identifier__ = null
-var Component = normalizeComponent(
-  __vue_script__,
-  __vue_template__,
-  __vue_template_functional__,
-  __vue_styles__,
-  __vue_scopeId__,
-  __vue_module_identifier__
-)
-Component.options.__file = "resources\\assets\\js\\components\\View.vue"
-
-/* hot reload */
-if (false) {(function () {
-  var hotAPI = require("vue-hot-reload-api")
-  hotAPI.install(require("vue"), false)
-  if (!hotAPI.compatible) return
-  module.hot.accept()
-  if (!module.hot.data) {
-    hotAPI.createRecord("data-v-214a4e1c", Component.options)
-  } else {
-    hotAPI.reload("data-v-214a4e1c", Component.options)
-  }
-  module.hot.dispose(function (data) {
-    disposed = true
-  })
-})()}
-
-module.exports = Component.exports
-
-
-/***/ }),
-/* 49 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// style-loader: Adds some css to the DOM by adding a <style> tag
-
-// load the styles
-var content = __webpack_require__(50);
-if(typeof content === 'string') content = [[module.i, content, '']];
-if(content.locals) module.exports = content.locals;
-// add the styles to the DOM
-var update = __webpack_require__(4)("4fbc55e6", content, false, {});
-// Hot Module Replacement
-if(false) {
- // When the styles change, update the <style> tags
- if(!content.locals) {
-   module.hot.accept("!!../../../../node_modules/css-loader/index.js!../../../../node_modules/vue-loader/lib/style-compiler/index.js?{\"vue\":true,\"id\":\"data-v-214a4e1c\",\"scoped\":false,\"hasInlineConfig\":true}!../../../../node_modules/vue-loader/lib/selector.js?type=styles&index=0!./View.vue", function() {
-     var newContent = require("!!../../../../node_modules/css-loader/index.js!../../../../node_modules/vue-loader/lib/style-compiler/index.js?{\"vue\":true,\"id\":\"data-v-214a4e1c\",\"scoped\":false,\"hasInlineConfig\":true}!../../../../node_modules/vue-loader/lib/selector.js?type=styles&index=0!./View.vue");
-     if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
-     update(newContent);
-   });
- }
- // When the module is disposed, remove the <style> tags
- module.hot.dispose(function() { update(); });
-}
-
-/***/ }),
-/* 50 */
-/***/ (function(module, exports, __webpack_require__) {
-
-exports = module.exports = __webpack_require__(3)(false);
-// imports
-
-
-// module
-exports.push([module.i, "\n#looks{\n   font-size: 120px;\n   z-index: 1000;\n   padding: 70px 0;\n   margin: auto;\n   margin-left: 390px;\n}\n.card__media__background.{\n   background-attachment: fixed;\n   content: woooo;\n}\n", ""]);
-
-// exports
-
-
-/***/ }),
+/* 48 */,
+/* 49 */,
+/* 50 */,
 /* 51 */
 /***/ (function(module, exports) {
 
@@ -68515,104 +68429,8 @@ module.exports = function listToStyles (parentId, list) {
 
 
 /***/ }),
-/* 52 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-
-/* harmony default export */ __webpack_exports__["default"] = ({
-   mounted: function mounted() {
-      console.log('Component mounted.');
-   }
-});
-
-/***/ }),
-/* 53 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var render = function() {
-  var _vm = this
-  var _h = _vm.$createElement
-  var _c = _vm._self._c || _h
-  return _c(
-    "v-app",
-    [
-      _c(
-        "v-layout",
-        [
-          _c(
-            "v-flex",
-            { attrs: { xs12: "", sm12: "" } },
-            [
-              _c(
-                "v-card",
-                [
-                  _c(
-                    "v-card-media",
-                    {
-                      attrs: {
-                        src: "/storage/background/tylor.jpeg",
-                        height: "630px",
-                        width: "100%"
-                      }
-                    },
-                    [
-                      _c("h1", { attrs: { id: "looks" } }, [
-                        _c("b", [
-                          _vm._v("NEW "),
-                          _c(
-                            "span",
-                            {
-                              staticStyle: {
-                                color: "#0fb7a4",
-                                "line-height": "36px"
-                              }
-                            },
-                            [_vm._v("Looks")]
-                          )
-                        ])
-                      ])
-                    ]
-                  )
-                ],
-                1
-              )
-            ],
-            1
-          )
-        ],
-        1
-      )
-    ],
-    1
-  )
-}
-var staticRenderFns = []
-render._withStripped = true
-module.exports = { render: render, staticRenderFns: staticRenderFns }
-if (false) {
-  module.hot.accept()
-  if (module.hot.data) {
-    require("vue-hot-reload-api")      .rerender("data-v-214a4e1c", module.exports)
-  }
-}
-
-/***/ }),
+/* 52 */,
+/* 53 */,
 /* 54 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -68621,7 +68439,7 @@ function injectStyle (ssrContext) {
   if (disposed) return
   __webpack_require__(55)
 }
-var normalizeComponent = __webpack_require__(1)
+var normalizeComponent = __webpack_require__(0)
 /* script */
 var __vue_script__ = __webpack_require__(57)
 /* template */
@@ -68693,7 +68511,7 @@ if(false) {
 /* 56 */
 /***/ (function(module, exports, __webpack_require__) {
 
-exports = module.exports = __webpack_require__(3)(false);
+exports = module.exports = __webpack_require__(2)(false);
 // imports
 
 
@@ -68840,7 +68658,7 @@ var EditBrand = __webpack_require__(61);
 /***/ (function(module, exports, __webpack_require__) {
 
 var disposed = false
-var normalizeComponent = __webpack_require__(1)
+var normalizeComponent = __webpack_require__(0)
 /* script */
 var __vue_script__ = __webpack_require__(59)
 /* template */
@@ -69124,7 +68942,7 @@ if (false) {
 /***/ (function(module, exports, __webpack_require__) {
 
 var disposed = false
-var normalizeComponent = __webpack_require__(1)
+var normalizeComponent = __webpack_require__(0)
 /* script */
 var __vue_script__ = __webpack_require__(62)
 /* template */
@@ -69641,7 +69459,7 @@ function injectStyle (ssrContext) {
   if (disposed) return
   __webpack_require__(66)
 }
-var normalizeComponent = __webpack_require__(1)
+var normalizeComponent = __webpack_require__(0)
 /* script */
 var __vue_script__ = __webpack_require__(68)
 /* template */
@@ -69713,7 +69531,7 @@ if(false) {
 /* 67 */
 /***/ (function(module, exports, __webpack_require__) {
 
-exports = module.exports = __webpack_require__(3)(false);
+exports = module.exports = __webpack_require__(2)(false);
 // imports
 
 
@@ -69901,7 +69719,7 @@ var EditCategory = __webpack_require__(75);
 /***/ (function(module, exports, __webpack_require__) {
 
 var disposed = false
-var normalizeComponent = __webpack_require__(1)
+var normalizeComponent = __webpack_require__(0)
 /* script */
 var __vue_script__ = __webpack_require__(70)
 /* template */
@@ -70203,7 +70021,7 @@ if (false) {
 /***/ (function(module, exports, __webpack_require__) {
 
 var disposed = false
-var normalizeComponent = __webpack_require__(1)
+var normalizeComponent = __webpack_require__(0)
 /* script */
 var __vue_script__ = __webpack_require__(73)
 /* template */
@@ -70501,7 +70319,7 @@ if (false) {
 /***/ (function(module, exports, __webpack_require__) {
 
 var disposed = false
-var normalizeComponent = __webpack_require__(1)
+var normalizeComponent = __webpack_require__(0)
 /* script */
 var __vue_script__ = __webpack_require__(76)
 /* template */
@@ -71171,7 +70989,7 @@ function injectStyle (ssrContext) {
   if (disposed) return
   __webpack_require__(80)
 }
-var normalizeComponent = __webpack_require__(1)
+var normalizeComponent = __webpack_require__(0)
 /* script */
 var __vue_script__ = __webpack_require__(82)
 /* template */
@@ -71243,7 +71061,7 @@ if(false) {
 /* 81 */
 /***/ (function(module, exports, __webpack_require__) {
 
-exports = module.exports = __webpack_require__(3)(false);
+exports = module.exports = __webpack_require__(2)(false);
 // imports
 
 
@@ -71261,11 +71079,6 @@ exports.push([module.i, "\n#looks{\r\n font-size: 120px;\r\n z-index: 1000;\r\n 
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
-//
-//
-//
-//
-//
 //
 //
 //
@@ -71469,6 +71282,7 @@ var EditProduct = __webpack_require__(86);
       search: '',
       errors: {},
       avatar: '',
+      Allpros: [],
       image: null,
       imagedialog: false,
       editedItem: {
@@ -71488,12 +71302,6 @@ var EditProduct = __webpack_require__(86);
   },
 
   methods: {
-    resetForm: function resetForm() {
-      this.form = Object.assign({}, this.defaultForm);
-      this.$refs.form.reset();
-      this.close();
-    },
-
     // Image Upload
     onPickFile: function onPickFile() {
       this.$refs.fileInput.click();
@@ -71524,7 +71332,7 @@ var EditProduct = __webpack_require__(86);
       reader.onload = function (e) {
         _this2.avatar = e.target.result;
       };
-      // this.imagePlaced = true
+      this.imagePlaced = true;
       var form = new FormData();
       form.append('image', image);
       this.file = form;
@@ -71533,9 +71341,7 @@ var EditProduct = __webpack_require__(86);
     upload: function upload() {
       var _this3 = this;
 
-      // console.log(this.image);
-      console.log(this.$data.image);
-      axios.post('/prodImage/' + this.imageAdd.id, this.$data.file).then(function (response) {
+      axios.post('/productimg/' + this.imageAdd.id, this.file).then(function (response) {
         console.log(response);
         _this3.imagePlaced = false;
         _this3.color = 'black';
@@ -71545,7 +71351,7 @@ var EditProduct = __webpack_require__(86);
       });
     },
     cancle: function cancle() {
-      this.imageAdd.avatar = '';
+      this.avatar = '';
       this.imagePlaced = false;
     },
     openAddModal: function openAddModal() {
@@ -71656,6 +71462,12 @@ var EditProduct = __webpack_require__(86);
       _this7.errors = error.response.data.errors;
     });
 
+    axios.post('getprod').then(function (response) {
+      _this7.Allpros = response.data;
+    }).catch(function (error) {
+      _this7.errors = error.response.data.errors;
+    });
+
     axios.post('getproducts').then(function (response) {
       _this7.products = response.data;
       _this7.loading = false;
@@ -71672,7 +71484,7 @@ var EditProduct = __webpack_require__(86);
 /***/ (function(module, exports, __webpack_require__) {
 
 var disposed = false
-var normalizeComponent = __webpack_require__(1)
+var normalizeComponent = __webpack_require__(0)
 /* script */
 var __vue_script__ = __webpack_require__(84)
 /* template */
@@ -72468,7 +72280,7 @@ if (false) {
 /***/ (function(module, exports, __webpack_require__) {
 
 var disposed = false
-var normalizeComponent = __webpack_require__(1)
+var normalizeComponent = __webpack_require__(0)
 /* script */
 var __vue_script__ = __webpack_require__(87)
 /* template */
@@ -72843,15 +72655,8 @@ var render = function() {
                     "v-card-text",
                     [
                       _c(
-                        "v-form",
-                        {
-                          ref: "form",
-                          on: {
-                            submit: function($event) {
-                              $event.preventDefault()
-                            }
-                          }
-                        },
+                        "v-flex",
+                        { attrs: { xs12: "", sm4: "" } },
                         [
                           _c(
                             "v-container",
@@ -72878,11 +72683,7 @@ var render = function() {
                                   _c("input", {
                                     ref: "fileInput",
                                     staticStyle: { display: "none" },
-                                    attrs: {
-                                      type: "file",
-                                      accept: "image/*",
-                                      name: "image"
-                                    },
+                                    attrs: { type: "file", accept: "image/*" },
                                     on: { change: _vm.Getimage }
                                   }),
                                   _vm._v(" "),
@@ -72896,8 +72697,8 @@ var render = function() {
                                       }
                                     ],
                                     staticStyle: {
-                                      width: "200px",
-                                      height: "200px"
+                                      width: "300px",
+                                      height: "240px"
                                     },
                                     attrs: { src: _vm.avatar }
                                   }),
@@ -72918,21 +72719,6 @@ var render = function() {
                                       on: { click: _vm.cancle }
                                     },
                                     [_vm._v("Cancle")]
-                                  ),
-                                  _vm._v(" "),
-                                  _c(
-                                    "v-btn",
-                                    {
-                                      staticClass: "primary",
-                                      attrs: { raised: "" },
-                                      on: {
-                                        click: function($event) {
-                                          $event.preventDefault()
-                                          return _vm.upload($event)
-                                        }
-                                      }
-                                    },
-                                    [_vm._v("Upload")]
                                   )
                                 ],
                                 1
@@ -72948,9 +72734,18 @@ var render = function() {
                                 "v-btn",
                                 {
                                   attrs: { flat: "" },
-                                  on: { click: _vm.resetForm }
+                                  on: { click: _vm.close }
                                 },
                                 [_vm._v("Close")]
+                              ),
+                              _vm._v(" "),
+                              _c(
+                                "v-btn",
+                                {
+                                  attrs: { flat: "" },
+                                  on: { click: _vm.upload }
+                                },
+                                [_vm._v("Upload")]
                               ),
                               _vm._v(" "),
                               _c("v-spacer")
@@ -73605,9 +73400,4042 @@ if (false) {
 
 /***/ }),
 /* 90 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var disposed = false
+function injectStyle (ssrContext) {
+  if (disposed) return
+  __webpack_require__(91)
+}
+var normalizeComponent = __webpack_require__(0)
+/* script */
+var __vue_script__ = __webpack_require__(93)
+/* template */
+var __vue_template__ = __webpack_require__(103)
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-d0ee1f54"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __vue_script__,
+  __vue_template__,
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+Component.options.__file = "resources\\assets\\js\\components\\users\\User.vue"
+
+/* hot reload */
+if (false) {(function () {
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), false)
+  if (!hotAPI.compatible) return
+  module.hot.accept()
+  if (!module.hot.data) {
+    hotAPI.createRecord("data-v-d0ee1f54", Component.options)
+  } else {
+    hotAPI.reload("data-v-d0ee1f54", Component.options)
+  }
+  module.hot.dispose(function (data) {
+    disposed = true
+  })
+})()}
+
+module.exports = Component.exports
+
+
+/***/ }),
+/* 91 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(92);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(4)("28c235f1", content, false, {});
+// Hot Module Replacement
+if(false) {
+ // When the styles change, update the <style> tags
+ if(!content.locals) {
+   module.hot.accept("!!../../../../../node_modules/css-loader/index.js!../../../../../node_modules/vue-loader/lib/style-compiler/index.js?{\"vue\":true,\"id\":\"data-v-d0ee1f54\",\"scoped\":true,\"hasInlineConfig\":true}!../../../../../node_modules/vue-loader/lib/selector.js?type=styles&index=0!./User.vue", function() {
+     var newContent = require("!!../../../../../node_modules/css-loader/index.js!../../../../../node_modules/vue-loader/lib/style-compiler/index.js?{\"vue\":true,\"id\":\"data-v-d0ee1f54\",\"scoped\":true,\"hasInlineConfig\":true}!../../../../../node_modules/vue-loader/lib/selector.js?type=styles&index=0!./User.vue");
+     if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
+     update(newContent);
+   });
+ }
+ // When the module is disposed, remove the <style> tags
+ module.hot.dispose(function() { update(); });
+}
+
+/***/ }),
+/* 92 */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(2)(false);
+// imports
+
+
+// module
+exports.push([module.i, "\n.content--wrap[data-v-d0ee1f54]{\r\n margin-top: -100px\n}\n#profile[data-v-d0ee1f54] { \r\n width: 70px;\r\n height: 60px;\r\n border-radius: 50%;\r\n margin-left: 80px;\r\n margin-top: -30px;\n}\ni[data-v-d0ee1f54]{\r\n padding: 7px;\r\n background: #f0f0f0;\r\n border-radius: 50%;\n}\n.list-group-item[data-v-d0ee1f54]:hover, .list-group-item[data-v-d0ee1f54]:focus {\r\n z-index: 1;\r\n background: #f9f9f9;\r\n text-decoration: none;\n}\r\n", ""]);
+
+// exports
+
+
+/***/ }),
+/* 93 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+var AddUser = __webpack_require__(94);
+var ShowUser = __webpack_require__(97);
+var EditUser = __webpack_require__(100);
+/* harmony default export */ __webpack_exports__["default"] = ({
+  props: ['user', 'role'],
+  components: {
+    AddUser: AddUser, ShowUser: ShowUser, EditUser: EditUser
+  },
+  data: function data() {
+    return {
+      select: { state: 'All', abbr: 'all' },
+      items: [{ state: 'All', abbr: 'all' }, { state: 'Admin', abbr: 'Admin' }, { state: 'company Admin', abbr: 'companyAdmin' }, { state: 'Customers', abbr: 'Customer' }, { state: 'Drivers', abbr: 'Driver' }],
+      search: '',
+      loader: false,
+      a1: null,
+      dispAdd: false,
+      dispShow: false,
+      dispEdit: false,
+      snackbar: false,
+      timeout: 5000,
+      color: 'black',
+      message: 'Success',
+      y: 'bottom',
+      x: 'left',
+      Allusers: {},
+      temp: '',
+      states: ['Virgin Island', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+    };
+  },
+
+  watch: {
+    search: function search() {
+      var _this = this;
+
+      if (this.search.length > 0) {
+        this.temp = this.Allusers.filter(function (item) {
+          return item.name.toLowerCase().indexOf(_this.search.toLowerCase()) > -1;
+        });
+      } else {
+        this.temp = this.Allusers;
+      }
+    }
+  },
+  methods: {
+    openShow: function openShow(key) {
+      // this.$children[4].list = this.company[key]
+      this.$children[2].list = this.Allusers[key];
+      this.dispShow = true;
+    },
+    openAdd: function openAdd() {
+      this.dispAdd = true;
+    },
+    openEdit: function openEdit(key) {
+      // this.$children[4].list = this.company[key]
+      this.$children[3].form = this.Allusers[key];
+      this.dispEdit = true;
+    },
+    showAlert: function showAlert() {
+      this.message = 'Successifully Added';
+      this.snackbar = true;
+      this.color = black;
+    },
+    del: function del(key, id) {
+      var _this2 = this;
+
+      if (confirm('Are you sure you want to delete this item?')) {
+        this.loader = true;
+        axios.delete('/users/' + id).then(function (response) {
+          _this2.Allusers.splice(index, 1);
+          _this2.loader = false;
+          _this2.message = 'deleted successifully';
+          _this2.color = 'red';
+          _this2.snackbar = true;
+        }).catch(function (error) {
+          _this2.errors = error.response.data.errors;
+          _this2.loader = false;
+          _this2.message = 'something went wrong';
+          _this2.color = 'red';
+          _this2.snackbar = true;
+        });
+      }
+    },
+    close: function close() {
+      this.dispAdd = this.dispShow = this.dispEdit = false;
+    }
+  },
+  mounted: function mounted() {
+    var _this3 = this;
+
+    this.loader = true;
+    axios.post('getUsers').then(function (response) {
+      _this3.Allusers = _this3.temp = response.data;
+      _this3.loader = false;
+    }).catch(function (error) {
+      _this3.errors = error.response.data.errors;
+      _this3.loader = false;
+    });
+  }
+});
+
+/***/ }),
+/* 94 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var disposed = false
+var normalizeComponent = __webpack_require__(0)
+/* script */
+var __vue_script__ = __webpack_require__(95)
+/* template */
+var __vue_template__ = __webpack_require__(96)
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = null
+/* scopeId */
+var __vue_scopeId__ = null
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __vue_script__,
+  __vue_template__,
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+Component.options.__file = "resources\\assets\\js\\components\\users\\AddUser.vue"
+
+/* hot reload */
+if (false) {(function () {
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), false)
+  if (!hotAPI.compatible) return
+  module.hot.accept()
+  if (!module.hot.data) {
+    hotAPI.createRecord("data-v-22902451", Component.options)
+  } else {
+    hotAPI.reload("data-v-22902451", Component.options)
+  }
+  module.hot.dispose(function (data) {
+    disposed = true
+  })
+})()}
+
+module.exports = Component.exports
+
+
+/***/ }),
+/* 95 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["default"] = (_defineProperty({
+  props: ['openAddRequest'],
+  data: function data() {
+    var defaultForm = Object.freeze({
+      name: '',
+      password: '',
+      email: '',
+      phone: null,
+      zipcode: null,
+      branch: '',
+      address: '',
+      city: '',
+      country: ''
+    });
+    return {
+      companies: {},
+      errors: {},
+      defaultForm: defaultForm,
+      loader: false,
+      e1: false,
+      form: Object.assign({}, defaultForm),
+      emailRules: [function (v) {
+        return !!v || 'E-mail is required';
+      }, function (v) {
+        return (/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || 'E-mail must be valid'
+        );
+      }],
+      rules: {
+        name: [function (val) {
+          return (val || '').length > 0 || 'This field is required';
+        }]
+      }
+    };
+  },
+
+  methods: {
+    save: function save() {
+      var _this = this;
+
+      axios.post('/users', this.$data.form).then(function (response) {
+        _this.loader = false;
+        console.log(response);
+        _this.$parent.Allusers.push(response.data);
+        _this.close;
+        _this.resetForm();
+        _this.$emit('closeRequest');
+        _this.$emit('alertRequest');
+      }).catch(function (error) {
+        _this.errors = error.response.data.errors;
+        _this.loader = false;
+      });
+    },
+    resetForm: function resetForm() {
+      this.form = Object.assign({}, this.defaultForm);
+      this.$refs.form.reset();
+    },
+    close: function close() {
+      this.$emit('closeRequest');
+    }
+  },
+  mounted: function mounted() {
+    var _this2 = this;
+
+    axios.post('getCompanyAdmin').then(function (response) {
+      _this2.Allusers = response.data;
+    }).catch(function (error) {
+      _this2.errors = error.response.data.errors;
+    });
+
+    axios.post('getCompanies').then(function (response) {
+      _this2.companies = response.data;
+    }).catch(function (error) {
+      _this2.errors = error.response.data.errors;
+    });
+  },
+
+  computed: {
+    formIsValid: function formIsValid() {
+      return this.form.name && this.form.email && this.form.phone && this.form.password && this.form.zipcode && this.form.branch && this.form.address && this.form.city && this.form.country;
+    }
+  }
+}, 'mounted', function mounted() {}));
+
+/***/ }),
+/* 96 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var render = function() {
+  var _vm = this
+  var _h = _vm.$createElement
+  var _c = _vm._self._c || _h
+  return _c(
+    "v-layout",
+    { attrs: { row: "", "justify-center": "" } },
+    [
+      _c(
+        "v-dialog",
+        {
+          attrs: { persistent: "", "max-width": "700px" },
+          model: {
+            value: _vm.openAddRequest,
+            callback: function($$v) {
+              _vm.openAddRequest = $$v
+            },
+            expression: "openAddRequest"
+          }
+        },
+        [
+          _c(
+            "v-card",
+            [
+              _c("v-card-title", { attrs: { fixed: "" } }, [
+                _c("span", { staticClass: "headline" }, [_vm._v("Add User")])
+              ]),
+              _vm._v(" "),
+              _c(
+                "v-card-text",
+                [
+                  _c(
+                    "v-container",
+                    { attrs: { "grid-list-md": "" } },
+                    [
+                      _c(
+                        "v-layout",
+                        {
+                          directives: [
+                            {
+                              name: "show",
+                              rawName: "v-show",
+                              value: !_vm.loader,
+                              expression: "!loader"
+                            }
+                          ],
+                          attrs: { wrap: "" }
+                        },
+                        [
+                          _c(
+                            "v-form",
+                            {
+                              ref: "form",
+                              on: {
+                                submit: function($event) {
+                                  $event.preventDefault()
+                                }
+                              }
+                            },
+                            [
+                              _c(
+                                "v-container",
+                                { attrs: { "grid-list-xl": "", fluid: "" } },
+                                [
+                                  _c(
+                                    "v-layout",
+                                    { attrs: { wrap: "" } },
+                                    [
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "purple darken-2",
+                                              label: "Full name",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.name,
+                                              callback: function($$v) {
+                                                _vm.$set(_vm.form, "name", $$v)
+                                              },
+                                              expression: "form.name"
+                                            }
+                                          }),
+                                          _vm._v(" "),
+                                          _vm.errors.name
+                                            ? _c(
+                                                "small",
+                                                {
+                                                  staticClass: "has-text-danger"
+                                                },
+                                                [
+                                                  _vm._v(
+                                                    _vm._s(_vm.errors.name[0])
+                                                  )
+                                                ]
+                                              )
+                                            : _vm._e()
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.emailRules,
+                                              color: "blue darken-2",
+                                              label: "Email",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.email,
+                                              callback: function($$v) {
+                                                _vm.$set(_vm.form, "email", $$v)
+                                              },
+                                              expression: "form.email"
+                                            }
+                                          }),
+                                          _vm._v(" "),
+                                          _vm.errors.email
+                                            ? _c(
+                                                "small",
+                                                {
+                                                  staticClass: "has-text-danger"
+                                                },
+                                                [
+                                                  _vm._v(
+                                                    _vm._s(_vm.errors.email[0])
+                                                  )
+                                                ]
+                                              )
+                                            : _vm._e()
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            staticClass: "input-group--focused",
+                                            attrs: {
+                                              "append-icon": _vm.e1
+                                                ? "visibility"
+                                                : "visibility_off",
+                                              "append-icon-cb": function() {
+                                                return (_vm.e1 = !_vm.e1)
+                                              },
+                                              type: _vm.e1
+                                                ? "password"
+                                                : "text",
+                                              name: "input-10-2",
+                                              label: "Enter your password",
+                                              hint: "At least 8 characters",
+                                              min: "8",
+                                              value: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.password,
+                                              callback: function($$v) {
+                                                _vm.$set(
+                                                  _vm.form,
+                                                  "password",
+                                                  $$v
+                                                )
+                                              },
+                                              expression: "form.password"
+                                            }
+                                          }),
+                                          _vm._v(" "),
+                                          _vm.errors.password
+                                            ? _c(
+                                                "small",
+                                                {
+                                                  staticClass: "has-text-danger"
+                                                },
+                                                [
+                                                  _vm._v(
+                                                    _vm._s(
+                                                      _vm.errors.password[0]
+                                                    )
+                                                  )
+                                                ]
+                                              )
+                                            : _vm._e()
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "Address",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.address,
+                                              callback: function($$v) {
+                                                _vm.$set(
+                                                  _vm.form,
+                                                  "address",
+                                                  $$v
+                                                )
+                                              },
+                                              expression: "form.address"
+                                            }
+                                          }),
+                                          _vm._v(" "),
+                                          _vm.errors.address
+                                            ? _c(
+                                                "small",
+                                                {
+                                                  staticClass: "has-text-danger"
+                                                },
+                                                [
+                                                  _vm._v(
+                                                    _vm._s(
+                                                      _vm.errors.address[0]
+                                                    )
+                                                  )
+                                                ]
+                                              )
+                                            : _vm._e()
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "City",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.city,
+                                              callback: function($$v) {
+                                                _vm.$set(_vm.form, "city", $$v)
+                                              },
+                                              expression: "form.city"
+                                            }
+                                          }),
+                                          _vm._v(" "),
+                                          _vm.errors.city
+                                            ? _c(
+                                                "small",
+                                                {
+                                                  staticClass: "has-text-danger"
+                                                },
+                                                [
+                                                  _vm._v(
+                                                    _vm._s(_vm.errors.city[0])
+                                                  )
+                                                ]
+                                              )
+                                            : _vm._e()
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "Country",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.country,
+                                              callback: function($$v) {
+                                                _vm.$set(
+                                                  _vm.form,
+                                                  "country",
+                                                  $$v
+                                                )
+                                              },
+                                              expression: "form.country"
+                                            }
+                                          }),
+                                          _vm._v(" "),
+                                          _vm.errors.country
+                                            ? _c(
+                                                "small",
+                                                {
+                                                  staticClass: "has-text-danger"
+                                                },
+                                                [
+                                                  _vm._v(
+                                                    _vm._s(
+                                                      _vm.errors.country[0]
+                                                    )
+                                                  )
+                                                ]
+                                              )
+                                            : _vm._e()
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "Phone",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.phone,
+                                              callback: function($$v) {
+                                                _vm.$set(_vm.form, "phone", $$v)
+                                              },
+                                              expression: "form.phone"
+                                            }
+                                          }),
+                                          _vm._v(" "),
+                                          _vm.errors.phone
+                                            ? _c(
+                                                "small",
+                                                {
+                                                  staticClass: "has-text-danger"
+                                                },
+                                                [
+                                                  _vm._v(
+                                                    _vm._s(_vm.errors.phone[0])
+                                                  )
+                                                ]
+                                              )
+                                            : _vm._e()
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "Zip Code",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.zipcode,
+                                              callback: function($$v) {
+                                                _vm.$set(
+                                                  _vm.form,
+                                                  "zipcode",
+                                                  $$v
+                                                )
+                                              },
+                                              expression: "form.zipcode"
+                                            }
+                                          }),
+                                          _vm._v(" "),
+                                          _vm.errors.zipcode
+                                            ? _c(
+                                                "small",
+                                                {
+                                                  staticClass: "has-text-danger"
+                                                },
+                                                [
+                                                  _vm._v(
+                                                    _vm._s(
+                                                      _vm.errors.zipcode[0]
+                                                    )
+                                                  )
+                                                ]
+                                              )
+                                            : _vm._e()
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "Branch",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.branch,
+                                              callback: function($$v) {
+                                                _vm.$set(
+                                                  _vm.form,
+                                                  "branch",
+                                                  $$v
+                                                )
+                                              },
+                                              expression: "form.branch"
+                                            }
+                                          }),
+                                          _vm._v(" "),
+                                          _vm.errors.branch
+                                            ? _c(
+                                                "small",
+                                                {
+                                                  staticClass: "has-text-danger"
+                                                },
+                                                [
+                                                  _vm._v(
+                                                    _vm._s(_vm.errors.branch[0])
+                                                  )
+                                                ]
+                                              )
+                                            : _vm._e()
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "select",
+                                        {
+                                          directives: [
+                                            {
+                                              name: "model",
+                                              rawName: "v-model",
+                                              value: _vm.form.role_id,
+                                              expression: "form.role_id"
+                                            }
+                                          ],
+                                          staticClass:
+                                            "custom-select custom-select-md col-md-3",
+                                          on: {
+                                            change: function($event) {
+                                              var $$selectedVal = Array.prototype.filter
+                                                .call(
+                                                  $event.target.options,
+                                                  function(o) {
+                                                    return o.selected
+                                                  }
+                                                )
+                                                .map(function(o) {
+                                                  var val =
+                                                    "_value" in o
+                                                      ? o._value
+                                                      : o.value
+                                                  return val
+                                                })
+                                              _vm.$set(
+                                                _vm.form,
+                                                "role_id",
+                                                $event.target.multiple
+                                                  ? $$selectedVal
+                                                  : $$selectedVal[0]
+                                              )
+                                            }
+                                          }
+                                        },
+                                        [
+                                          _c(
+                                            "option",
+                                            { attrs: { value: "1" } },
+                                            [_vm._v("Admin")]
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "option",
+                                            { attrs: { value: "2" } },
+                                            [_vm._v("Company Admin")]
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "option",
+                                            { attrs: { value: "3" } },
+                                            [_vm._v("Customer")]
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "option",
+                                            { attrs: { value: "4" } },
+                                            [_vm._v("Driver")]
+                                          )
+                                        ]
+                                      )
+                                    ],
+                                    1
+                                  )
+                                ],
+                                1
+                              ),
+                              _vm._v(" "),
+                              _c(
+                                "v-card-actions",
+                                [
+                                  _c(
+                                    "v-btn",
+                                    {
+                                      attrs: { flat: "" },
+                                      on: { click: _vm.resetForm }
+                                    },
+                                    [_vm._v("reset")]
+                                  ),
+                                  _vm._v(" "),
+                                  _c(
+                                    "v-btn",
+                                    {
+                                      attrs: { flat: "" },
+                                      on: { click: _vm.close }
+                                    },
+                                    [_vm._v("Close")]
+                                  ),
+                                  _vm._v(" "),
+                                  _c("v-spacer"),
+                                  _vm._v(" "),
+                                  _c(
+                                    "v-btn",
+                                    {
+                                      attrs: {
+                                        disabled: !_vm.formIsValid,
+                                        flat: "",
+                                        color: "primary"
+                                      },
+                                      on: { click: _vm.save }
+                                    },
+                                    [_vm._v("Submit")]
+                                  )
+                                ],
+                                1
+                              )
+                            ],
+                            1
+                          )
+                        ],
+                        1
+                      ),
+                      _vm._v(" "),
+                      _c(
+                        "div",
+                        {
+                          directives: [
+                            {
+                              name: "show",
+                              rawName: "v-show",
+                              value: _vm.loader,
+                              expression: "loader"
+                            }
+                          ],
+                          staticStyle: { "text-align": "center", width: "100%" }
+                        },
+                        [
+                          _c("v-progress-circular", {
+                            staticStyle: { margin: "1rem" },
+                            attrs: { width: 3, indeterminate: "", color: "red" }
+                          })
+                        ],
+                        1
+                      )
+                    ],
+                    1
+                  )
+                ],
+                1
+              )
+            ],
+            1
+          )
+        ],
+        1
+      )
+    ],
+    1
+  )
+}
+var staticRenderFns = []
+render._withStripped = true
+module.exports = { render: render, staticRenderFns: staticRenderFns }
+if (false) {
+  module.hot.accept()
+  if (module.hot.data) {
+    require("vue-hot-reload-api")      .rerender("data-v-22902451", module.exports)
+  }
+}
+
+/***/ }),
+/* 97 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var disposed = false
+var normalizeComponent = __webpack_require__(0)
+/* script */
+var __vue_script__ = __webpack_require__(98)
+/* template */
+var __vue_template__ = __webpack_require__(99)
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = null
+/* scopeId */
+var __vue_scopeId__ = null
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __vue_script__,
+  __vue_template__,
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+Component.options.__file = "resources\\assets\\js\\components\\users\\ShowUser.vue"
+
+/* hot reload */
+if (false) {(function () {
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), false)
+  if (!hotAPI.compatible) return
+  module.hot.accept()
+  if (!module.hot.data) {
+    hotAPI.createRecord("data-v-39341e1a", Component.options)
+  } else {
+    hotAPI.reload("data-v-39341e1a", Component.options)
+  }
+  module.hot.dispose(function (data) {
+    disposed = true
+  })
+})()}
+
+module.exports = Component.exports
+
+
+/***/ }),
+/* 98 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["default"] = ({
+  props: ['openShowRequest'],
+  data: function data() {
+    return {
+      list: {}
+    };
+  },
+
+  methods: {
+    close: function close() {
+      this.$emit('closeRequest');
+    }
+  },
+  mounted: function mounted() {}
+});
+
+/***/ }),
+/* 99 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var render = function() {
+  var _vm = this
+  var _h = _vm.$createElement
+  var _c = _vm._self._c || _h
+  return _c(
+    "v-layout",
+    { attrs: { row: "", "justify-center": "" } },
+    [
+      _c(
+        "v-dialog",
+        {
+          attrs: { persistent: "", "max-width": "700px" },
+          model: {
+            value: _vm.openShowRequest,
+            callback: function($$v) {
+              _vm.openShowRequest = $$v
+            },
+            expression: "openShowRequest"
+          }
+        },
+        [
+          _c(
+            "v-card",
+            [
+              _c("v-card-title", { attrs: { fixed: "" } }, [
+                _c("span", { staticClass: "headline" }, [
+                  _vm._v(_vm._s(_vm.list.name) + "' Details")
+                ])
+              ]),
+              _vm._v(" "),
+              _c(
+                "v-card-text",
+                [
+                  _c("v-container", { attrs: { "grid-list-md": "" } }, [
+                    _c("div", { staticClass: "col-md-12 col-sm-12" }, [
+                      _c("ul", { staticClass: "list-group" }, [
+                        _c(
+                          "li",
+                          { staticClass: "list-group-item row active" },
+                          [
+                            _c("label", { staticClass: "col-md-5 col-lg-5" }, [
+                              _c("b", [_vm._v("Name")])
+                            ]),
+                            _vm._v(
+                              " " + _vm._s(_vm.list.name) + "\n            "
+                            )
+                          ]
+                        ),
+                        _vm._v(" "),
+                        _c("li", { staticClass: "list-group-item row" }, [
+                          _c("label", { staticClass: "col-md-5 col-lg-5" }, [
+                            _c("b", [_vm._v("Email")])
+                          ]),
+                          _vm._v(
+                            " " + _vm._s(_vm.list.email) + "\n            "
+                          )
+                        ]),
+                        _vm._v(" "),
+                        _c("li", { staticClass: "list-group-item row" }, [
+                          _c("label", { staticClass: "col-md-5 col-lg-5" }, [
+                            _c("b", [_vm._v("Phone Number")])
+                          ]),
+                          _vm._v(
+                            " " + _vm._s(_vm.list.phone) + "\n            "
+                          )
+                        ]),
+                        _vm._v(" "),
+                        _c("li", { staticClass: "list-group-item row" }, [
+                          _c("label", { staticClass: "col-md-5 col-lg-5" }, [
+                            _c("b", [_vm._v("Address")])
+                          ]),
+                          _vm._v(
+                            " " + _vm._s(_vm.list.address) + "\n            "
+                          )
+                        ]),
+                        _vm._v(" "),
+                        _c("li", { staticClass: "list-group-item row" }, [
+                          _c("label", { staticClass: "col-md-5 col-lg-5" }, [
+                            _c("b", [_vm._v("Country")])
+                          ]),
+                          _vm._v(
+                            " " + _vm._s(_vm.list.country) + "\n            "
+                          )
+                        ]),
+                        _vm._v(" "),
+                        _c("li", { staticClass: "list-group-item row" }, [
+                          _c("label", { staticClass: "col-md-5 col-lg-5" }, [
+                            _c("b", [_vm._v("City")])
+                          ]),
+                          _vm._v(" " + _vm._s(_vm.list.city) + "\n            ")
+                        ]),
+                        _vm._v(" "),
+                        _c("li", { staticClass: "list-group-item row" }, [
+                          _c("label", { staticClass: "col-md-5 col-lg-5" }, [
+                            _c("b", [_vm._v("Branch")])
+                          ]),
+                          _vm._v(
+                            " " + _vm._s(_vm.list.branch) + "\n            "
+                          )
+                        ]),
+                        _vm._v(" "),
+                        _c("li", { staticClass: "list-group-item row" }, [
+                          _c("label", { staticClass: "col-md-5 col-lg-5" }, [
+                            _c("b", [_vm._v("Zip Code")])
+                          ]),
+                          _vm._v(
+                            " " + _vm._s(_vm.list.zipcode) + "\n            "
+                          )
+                        ]),
+                        _vm._v(" "),
+                        _c("li", { staticClass: "list-group-item row" }, [
+                          _c("label", { staticClass: "col-md-5 col-lg-5" }, [
+                            _c("b", [_vm._v("Created On")])
+                          ]),
+                          _vm._v(
+                            " " + _vm._s(_vm.list.created_at) + "\n            "
+                          )
+                        ])
+                      ])
+                    ])
+                  ])
+                ],
+                1
+              ),
+              _vm._v(" "),
+              _c("v-btn", { attrs: { flat: "" }, on: { click: _vm.close } }, [
+                _vm._v("Close")
+              ])
+            ],
+            1
+          )
+        ],
+        1
+      )
+    ],
+    1
+  )
+}
+var staticRenderFns = []
+render._withStripped = true
+module.exports = { render: render, staticRenderFns: staticRenderFns }
+if (false) {
+  module.hot.accept()
+  if (module.hot.data) {
+    require("vue-hot-reload-api")      .rerender("data-v-39341e1a", module.exports)
+  }
+}
+
+/***/ }),
+/* 100 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var disposed = false
+var normalizeComponent = __webpack_require__(0)
+/* script */
+var __vue_script__ = __webpack_require__(101)
+/* template */
+var __vue_template__ = __webpack_require__(102)
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = null
+/* scopeId */
+var __vue_scopeId__ = null
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __vue_script__,
+  __vue_template__,
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+Component.options.__file = "resources\\assets\\js\\components\\users\\EditUser.vue"
+
+/* hot reload */
+if (false) {(function () {
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), false)
+  if (!hotAPI.compatible) return
+  module.hot.accept()
+  if (!module.hot.data) {
+    hotAPI.createRecord("data-v-a4d3b200", Component.options)
+  } else {
+    hotAPI.reload("data-v-a4d3b200", Component.options)
+  }
+  module.hot.dispose(function (data) {
+    disposed = true
+  })
+})()}
+
+module.exports = Component.exports
+
+
+/***/ }),
+/* 101 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["default"] = ({
+  props: ['openEditRequest'],
+  data: function data() {
+    var defaultForm = Object.freeze({
+      name: '',
+      password: '',
+      email: '',
+      phone: null,
+      zipcode: null,
+      branch: '',
+      address: '',
+      city: '',
+      country: ''
+    });
+    return {
+      defaultForm: defaultForm,
+      e1: true,
+      loader: false,
+      list: {},
+      form: Object.assign({}, defaultForm),
+      emailRules: [function (v) {
+        return !!v || 'E-mail is required';
+      }, function (v) {
+        return (/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || 'E-mail must be valid'
+        );
+      }],
+      rules: {
+        name: [function (val) {
+          return (val || '').length > 0 || 'This field is required';
+        }]
+      }
+    };
+  },
+
+  methods: {
+    update: function update() {
+      var _this = this;
+
+      axios.patch('/users/' + this.form.id, this.$data.form).then(function (response) {
+        // console.log(response);
+        _this.loader = false;
+        _this.close;
+        _this.resetForm();
+        _this.$emit('closeRequest');
+        _this.$emit('alertRequest');
+      }).catch(function (error) {
+        _this.errors = error.response.data.errors;
+        _this.loader = false;
+      });
+    },
+    resetForm: function resetForm() {
+      this.form = Object.assign({}, this.defaultForm);
+      this.$refs.form.reset();
+    },
+    close: function close() {
+      this.$emit('closeRequest');
+    }
+  },
+  computed: {
+    formIsValid: function formIsValid() {
+      return this.form.name && this.form.email && this.form.phone && this.form.password && this.form.zipcode && this.form.branch && this.form.address && this.form.city && this.form.country;
+    }
+  },
+  mounted: function mounted() {}
+});
+
+/***/ }),
+/* 102 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var render = function() {
+  var _vm = this
+  var _h = _vm.$createElement
+  var _c = _vm._self._c || _h
+  return _c(
+    "v-layout",
+    { attrs: { row: "", "justify-center": "" } },
+    [
+      _c(
+        "v-dialog",
+        {
+          attrs: { persistent: "", "max-width": "700px" },
+          model: {
+            value: _vm.openEditRequest,
+            callback: function($$v) {
+              _vm.openEditRequest = $$v
+            },
+            expression: "openEditRequest"
+          }
+        },
+        [
+          _c(
+            "v-card",
+            [
+              _c("v-card-title", { attrs: { fixed: "" } }, [
+                _c("span", { staticClass: "headline" }, [_vm._v("Add User")])
+              ]),
+              _vm._v(" "),
+              _c(
+                "v-card-text",
+                [
+                  _c(
+                    "v-container",
+                    { attrs: { "grid-list-md": "" } },
+                    [
+                      _c(
+                        "v-layout",
+                        {
+                          directives: [
+                            {
+                              name: "show",
+                              rawName: "v-show",
+                              value: !_vm.loader,
+                              expression: "!loader"
+                            }
+                          ],
+                          attrs: { wrap: "" }
+                        },
+                        [
+                          _c(
+                            "v-form",
+                            {
+                              ref: "form",
+                              on: {
+                                submit: function($event) {
+                                  $event.preventDefault()
+                                  return _vm.submit($event)
+                                }
+                              }
+                            },
+                            [
+                              _c(
+                                "v-container",
+                                { attrs: { "grid-list-xl": "", fluid: "" } },
+                                [
+                                  _c(
+                                    "v-layout",
+                                    { attrs: { wrap: "" } },
+                                    [
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "purple darken-2",
+                                              label: "Full name",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.name,
+                                              callback: function($$v) {
+                                                _vm.$set(_vm.form, "name", $$v)
+                                              },
+                                              expression: "form.name"
+                                            }
+                                          })
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.emailRules,
+                                              color: "blue darken-2",
+                                              label: "Email",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.email,
+                                              callback: function($$v) {
+                                                _vm.$set(_vm.form, "email", $$v)
+                                              },
+                                              expression: "form.email"
+                                            }
+                                          })
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            staticClass: "input-group--focused",
+                                            attrs: {
+                                              "append-icon": _vm.e1
+                                                ? "visibility_off"
+                                                : "visibility",
+                                              "append-icon-cb": function() {
+                                                return (_vm.e1 = !_vm.e1)
+                                              },
+                                              type: _vm.e1
+                                                ? "password"
+                                                : "text",
+                                              name: "input-10-2",
+                                              label: "Enter your password",
+                                              hint: "At least 8 characters",
+                                              min: "8",
+                                              value: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.password,
+                                              callback: function($$v) {
+                                                _vm.$set(
+                                                  _vm.form,
+                                                  "password",
+                                                  $$v
+                                                )
+                                              },
+                                              expression: "form.password"
+                                            }
+                                          })
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "Address",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.address,
+                                              callback: function($$v) {
+                                                _vm.$set(
+                                                  _vm.form,
+                                                  "address",
+                                                  $$v
+                                                )
+                                              },
+                                              expression: "form.address"
+                                            }
+                                          })
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "City",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.city,
+                                              callback: function($$v) {
+                                                _vm.$set(_vm.form, "city", $$v)
+                                              },
+                                              expression: "form.city"
+                                            }
+                                          })
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "Country",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.country,
+                                              callback: function($$v) {
+                                                _vm.$set(
+                                                  _vm.form,
+                                                  "country",
+                                                  $$v
+                                                )
+                                              },
+                                              expression: "form.country"
+                                            }
+                                          })
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "Phone",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.phone,
+                                              callback: function($$v) {
+                                                _vm.$set(_vm.form, "phone", $$v)
+                                              },
+                                              expression: "form.phone"
+                                            }
+                                          })
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "Zip Code",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.zipcode,
+                                              callback: function($$v) {
+                                                _vm.$set(
+                                                  _vm.form,
+                                                  "zipcode",
+                                                  $$v
+                                                )
+                                              },
+                                              expression: "form.zipcode"
+                                            }
+                                          })
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-flex",
+                                        { attrs: { xs12: "", sm6: "" } },
+                                        [
+                                          _c("v-text-field", {
+                                            attrs: {
+                                              rules: _vm.rules.name,
+                                              color: "blue darken-2",
+                                              label: "Branch",
+                                              required: ""
+                                            },
+                                            model: {
+                                              value: _vm.form.branch,
+                                              callback: function($$v) {
+                                                _vm.$set(
+                                                  _vm.form,
+                                                  "branch",
+                                                  $$v
+                                                )
+                                              },
+                                              expression: "form.branch"
+                                            }
+                                          })
+                                        ],
+                                        1
+                                      ),
+                                      _vm._v(" "),
+                                      _c(
+                                        "select",
+                                        {
+                                          directives: [
+                                            {
+                                              name: "model",
+                                              rawName: "v-model",
+                                              value: _vm.form.role_id,
+                                              expression: "form.role_id"
+                                            }
+                                          ],
+                                          staticClass:
+                                            "custom-select custom-select-md col-md-3",
+                                          on: {
+                                            change: function($event) {
+                                              var $$selectedVal = Array.prototype.filter
+                                                .call(
+                                                  $event.target.options,
+                                                  function(o) {
+                                                    return o.selected
+                                                  }
+                                                )
+                                                .map(function(o) {
+                                                  var val =
+                                                    "_value" in o
+                                                      ? o._value
+                                                      : o.value
+                                                  return val
+                                                })
+                                              _vm.$set(
+                                                _vm.form,
+                                                "role_id",
+                                                $event.target.multiple
+                                                  ? $$selectedVal
+                                                  : $$selectedVal[0]
+                                              )
+                                            }
+                                          }
+                                        },
+                                        [
+                                          _c(
+                                            "option",
+                                            { attrs: { value: "1" } },
+                                            [_vm._v("Admin")]
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "option",
+                                            { attrs: { value: "2" } },
+                                            [_vm._v("Company Admin")]
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "option",
+                                            { attrs: { value: "3" } },
+                                            [_vm._v("Customer")]
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "option",
+                                            { attrs: { value: "4" } },
+                                            [_vm._v("Driver")]
+                                          )
+                                        ]
+                                      )
+                                    ],
+                                    1
+                                  )
+                                ],
+                                1
+                              ),
+                              _vm._v(" "),
+                              _c(
+                                "v-card-actions",
+                                [
+                                  _c(
+                                    "v-btn",
+                                    {
+                                      attrs: { flat: "" },
+                                      on: { click: _vm.resetForm }
+                                    },
+                                    [_vm._v("reset")]
+                                  ),
+                                  _vm._v(" "),
+                                  _c(
+                                    "v-btn",
+                                    {
+                                      attrs: { flat: "" },
+                                      on: { click: _vm.close }
+                                    },
+                                    [_vm._v("Close")]
+                                  ),
+                                  _vm._v(" "),
+                                  _c("v-spacer"),
+                                  _vm._v(" "),
+                                  _c(
+                                    "v-btn",
+                                    {
+                                      attrs: {
+                                        disabled: !_vm.formIsValid,
+                                        flat: "",
+                                        color: "primary"
+                                      },
+                                      on: { click: _vm.update }
+                                    },
+                                    [_vm._v("Submit")]
+                                  )
+                                ],
+                                1
+                              )
+                            ],
+                            1
+                          )
+                        ],
+                        1
+                      ),
+                      _vm._v(" "),
+                      _c(
+                        "div",
+                        {
+                          directives: [
+                            {
+                              name: "show",
+                              rawName: "v-show",
+                              value: _vm.loader,
+                              expression: "loader"
+                            }
+                          ],
+                          staticStyle: { "text-align": "center" }
+                        },
+                        [
+                          _c("v-progress-circular", {
+                            staticStyle: { margin: "1rem" },
+                            attrs: { width: 3, indeterminate: "", color: "red" }
+                          })
+                        ],
+                        1
+                      )
+                    ],
+                    1
+                  )
+                ],
+                1
+              )
+            ],
+            1
+          )
+        ],
+        1
+      )
+    ],
+    1
+  )
+}
+var staticRenderFns = []
+render._withStripped = true
+module.exports = { render: render, staticRenderFns: staticRenderFns }
+if (false) {
+  module.hot.accept()
+  if (module.hot.data) {
+    require("vue-hot-reload-api")      .rerender("data-v-a4d3b200", module.exports)
+  }
+}
+
+/***/ }),
+/* 103 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var render = function() {
+  var _vm = this
+  var _h = _vm.$createElement
+  var _c = _vm._self._c || _h
+  return _c(
+    "div",
+    [
+      _c(
+        "v-app",
+        [
+          _c(
+            "v-content",
+            [
+              _c(
+                "v-container",
+                {
+                  directives: [
+                    {
+                      name: "show",
+                      rawName: "v-show",
+                      value: !_vm.loader,
+                      expression: "!loader"
+                    }
+                  ],
+                  attrs: { fluid: "", "fill-height": "" }
+                },
+                [
+                  _c(
+                    "v-layout",
+                    { attrs: { "justify-center": "", "align-center": "" } },
+                    [
+                      _c("div", { staticClass: "container" }, [
+                        _c(
+                          "div",
+                          { staticClass: "row justify-content-center" },
+                          [
+                            _c(
+                              "div",
+                              { staticClass: "col-md-12" },
+                              [
+                                _c(
+                                  "v-container",
+                                  { attrs: { fluid: "" } },
+                                  [
+                                    _c(
+                                      "v-layout",
+                                      { attrs: { row: "", wrap: "" } },
+                                      [
+                                        _c(
+                                          "v-flex",
+                                          { attrs: { xs4: "", sm3: "" } },
+                                          [
+                                            _c("v-select", {
+                                              attrs: {
+                                                items: _vm.items,
+                                                hint:
+                                                  _vm.select.state +
+                                                  ", " +
+                                                  _vm.select.abbr,
+                                                label: "Select",
+                                                "single-line": "",
+                                                "item-text": "state",
+                                                "item-value": "abbr",
+                                                "return-object": "",
+                                                "persistent-hint": ""
+                                              },
+                                              model: {
+                                                value: _vm.select,
+                                                callback: function($$v) {
+                                                  _vm.select = $$v
+                                                },
+                                                expression: "select"
+                                              }
+                                            })
+                                          ],
+                                          1
+                                        ),
+                                        _vm._v(" "),
+                                        _c(
+                                          "v-flex",
+                                          {
+                                            attrs: {
+                                              xs4: "",
+                                              sm3: "",
+                                              "offset-sm2": ""
+                                            }
+                                          },
+                                          [
+                                            _c("v-text-field", {
+                                              attrs: {
+                                                color: "blue darken-2",
+                                                label: "Search Users",
+                                                required: ""
+                                              },
+                                              model: {
+                                                value: _vm.search,
+                                                callback: function($$v) {
+                                                  _vm.search = $$v
+                                                },
+                                                expression: "search"
+                                              }
+                                            })
+                                          ],
+                                          1
+                                        ),
+                                        _vm._v(" "),
+                                        _c("v-divider"),
+                                        _vm._v(" "),
+                                        _c(
+                                          "v-btn",
+                                          {
+                                            attrs: {
+                                              slot: "activator",
+                                              color: "primary",
+                                              dark: ""
+                                            },
+                                            on: { click: _vm.openAdd },
+                                            slot: "activator"
+                                          },
+                                          [_vm._v("Add User")]
+                                        )
+                                      ],
+                                      1
+                                    )
+                                  ],
+                                  1
+                                )
+                              ],
+                              1
+                            )
+                          ]
+                        ),
+                        _vm._v(" "),
+                        _c(
+                          "div",
+                          { staticClass: "row" },
+                          _vm._l(_vm.temp, function(Alluser, key) {
+                            return _c(
+                              "div",
+                              { key: Alluser.id, staticClass: "col-md-3" },
+                              _vm._l(Alluser.roles, function(roles) {
+                                return _vm.select.abbr === "all" ||
+                                  roles.name === _vm.select.abbr
+                                  ? _c(
+                                      "div",
+                                      {
+                                        staticClass: "card border-primary mb-3",
+                                        staticStyle: { "max-width": "18rem" }
+                                      },
+                                      [
+                                        _c(
+                                          "div",
+                                          { staticClass: "card-header" },
+                                          [
+                                            _vm._v(
+                                              "\n              " +
+                                                _vm._s(Alluser.name) +
+                                                "'s Details\n              "
+                                            ),
+                                            _c(
+                                              "v-btn",
+                                              {
+                                                staticStyle: { float: "right" },
+                                                attrs: { color: "danger" },
+                                                on: {
+                                                  click: function($event) {
+                                                    _vm.del(key, Alluser.id)
+                                                  }
+                                                }
+                                              },
+                                              [_vm._v("Delete")]
+                                            )
+                                          ],
+                                          1
+                                        ),
+                                        _vm._v(" "),
+                                        _c(
+                                          "div",
+                                          {
+                                            staticClass:
+                                              "card-body text-primary"
+                                          },
+                                          [
+                                            _c("img", {
+                                              staticClass: "img-responsive",
+                                              staticStyle: {
+                                                width: "100%",
+                                                height: "100px"
+                                              },
+                                              attrs: {
+                                                src:
+                                                  "/storage/profile/land.jpg",
+                                                alt: "Profile image"
+                                              }
+                                            }),
+                                            _vm._v(" "),
+                                            _c("img", {
+                                              staticClass:
+                                                "img-responsive text-center",
+                                              attrs: {
+                                                id: "profile",
+                                                src:
+                                                  "/storage/profile/noimage.png",
+                                                alt: "Profile image"
+                                              }
+                                            }),
+                                            _c("br"),
+                                            _vm._v(" "),
+                                            _c("small", [
+                                              _c("i", {
+                                                staticClass: "fa fa-user"
+                                              }),
+                                              _vm._v(
+                                                "Name: " + _vm._s(Alluser.name)
+                                              )
+                                            ]),
+                                            _c("br"),
+                                            _vm._v(" "),
+                                            _c("small", [
+                                              _c("i", {
+                                                staticClass: "fa fa-envelope"
+                                              }),
+                                              _vm._v(
+                                                "Email: " +
+                                                  _vm._s(Alluser.email)
+                                              )
+                                            ])
+                                          ]
+                                        ),
+                                        _vm._v(" "),
+                                        _c(
+                                          "div",
+                                          {
+                                            staticClass:
+                                              "card-footer text-primary"
+                                          },
+                                          [
+                                            _c(
+                                              "v-btn",
+                                              {
+                                                staticClass: "col-md-5",
+                                                attrs: {
+                                                  slot: "activator",
+                                                  color: "default",
+                                                  dark: "",
+                                                  xs4: "",
+                                                  sm3: ""
+                                                },
+                                                on: {
+                                                  click: function($event) {
+                                                    _vm.openShow(key)
+                                                  }
+                                                },
+                                                slot: "activator"
+                                              },
+                                              [_vm._v("More")]
+                                            ),
+                                            _vm._v(" "),
+                                            _c(
+                                              "v-btn",
+                                              {
+                                                attrs: {
+                                                  slot: "activator",
+                                                  color: "default",
+                                                  dark: "",
+                                                  xs4: "",
+                                                  sm3: ""
+                                                },
+                                                on: {
+                                                  click: function($event) {
+                                                    _vm.openEdit(key)
+                                                  }
+                                                },
+                                                slot: "activator"
+                                              },
+                                              [_vm._v("Edit")]
+                                            )
+                                          ],
+                                          1
+                                        )
+                                      ]
+                                    )
+                                  : _vm._e()
+                              })
+                            )
+                          })
+                        )
+                      ])
+                    ]
+                  )
+                ],
+                1
+              ),
+              _vm._v(" "),
+              _c(
+                "div",
+                {
+                  directives: [
+                    {
+                      name: "show",
+                      rawName: "v-show",
+                      value: _vm.loader,
+                      expression: "loader"
+                    }
+                  ],
+                  staticStyle: { "text-align": "center", width: "100%" }
+                },
+                [
+                  _c("v-progress-circular", {
+                    staticStyle: { margin: "1rem" },
+                    attrs: { width: 3, indeterminate: "", color: "red" }
+                  })
+                ],
+                1
+              ),
+              _vm._v(" "),
+              _c(
+                "v-snackbar",
+                {
+                  attrs: {
+                    timeout: _vm.timeout,
+                    bottom: _vm.y === "bottom",
+                    color: _vm.color,
+                    left: _vm.x === "left"
+                  },
+                  model: {
+                    value: _vm.snackbar,
+                    callback: function($$v) {
+                      _vm.snackbar = $$v
+                    },
+                    expression: "snackbar"
+                  }
+                },
+                [
+                  _vm._v("\n  " + _vm._s(_vm.message) + "\n  "),
+                  _c("v-btn", { attrs: { flat: "", color: "white" } }, [
+                    _vm._v("Close")
+                  ])
+                ],
+                1
+              )
+            ],
+            1
+          ),
+          _vm._v(" "),
+          _c("AddUser", {
+            attrs: { openAddRequest: _vm.dispAdd },
+            on: { closeRequest: _vm.close, alertRequest: _vm.showAlert }
+          }),
+          _vm._v(" "),
+          _c("ShowUser", {
+            attrs: { openShowRequest: _vm.dispShow },
+            on: { closeRequest: _vm.close }
+          }),
+          _vm._v(" "),
+          _c("EditUser", {
+            attrs: { openEditRequest: _vm.dispEdit },
+            on: { closeRequest: _vm.close, alertRequest: _vm.showAlert }
+          })
+        ],
+        1
+      )
+    ],
+    1
+  )
+}
+var staticRenderFns = []
+render._withStripped = true
+module.exports = { render: render, staticRenderFns: staticRenderFns }
+if (false) {
+  module.hot.accept()
+  if (module.hot.data) {
+    require("vue-hot-reload-api")      .rerender("data-v-d0ee1f54", module.exports)
+  }
+}
+
+/***/ }),
+/* 104 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var disposed = false
+var normalizeComponent = __webpack_require__(0)
+/* script */
+var __vue_script__ = __webpack_require__(105)
+/* template */
+var __vue_template__ = __webpack_require__(106)
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = null
+/* scopeId */
+var __vue_scopeId__ = null
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __vue_script__,
+  __vue_template__,
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+Component.options.__file = "resources\\assets\\js\\components\\users\\Profile.vue"
+
+/* hot reload */
+if (false) {(function () {
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), false)
+  if (!hotAPI.compatible) return
+  module.hot.accept()
+  if (!module.hot.data) {
+    hotAPI.createRecord("data-v-771bf76e", Component.options)
+  } else {
+    hotAPI.reload("data-v-771bf76e", Component.options)
+  }
+  module.hot.dispose(function (data) {
+    disposed = true
+  })
+})()}
+
+module.exports = Component.exports
+
+
+/***/ }),
+/* 105 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["default"] = ({
+  props: ['user'],
+  data: function data() {
+    var defaultForm = Object.freeze({
+      name: '',
+      password: '',
+      email: '',
+      phone: null,
+      zipcode: null,
+      branch: '',
+      address: '',
+      city: '',
+      country: ''
+    });
+    return {
+      imagePlaced: false,
+      defaultForm: defaultForm,
+      avatar: '',
+      LogedUser: {},
+      e1: true,
+      snackbar: false,
+      loader: false,
+      form: Object.assign({}, defaultForm),
+      emailRules: [function (v) {
+        return !!v || 'E-mail is required';
+      }, function (v) {
+        return (/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || 'E-mail must be valid'
+        );
+      }],
+      rules: {
+        name: [function (val) {
+          return (val || '').length > 0 || 'This field is required';
+        }]
+      }
+    };
+  },
+
+  methods: {
+    Getimage: function Getimage(e) {
+      var _this = this;
+
+      var image = e.target.files[0];
+      // this.read(image);
+      var reader = new FileReader();
+      reader.readAsDataURL(image);
+      reader.onload = function (e) {
+        _this.avatar = e.target.result;
+      };
+      this.imagePlaced = true;
+      var form = new FormData();
+      form.append('image', image);
+      this.file = form;
+      console.log(e.target.files);
+    },
+    upload: function upload() {
+      var _this2 = this;
+
+      axios.post('/profile/' + this.LogedUser.id, this.file).then(function (response) {
+        console.log(response);
+        _this2.imagePlaced = false;
+        _this2.color = 'black';
+        _this2.text = 'Profile image updated';
+        _this2.snackbar = true;
+        // this.close()
+      });
+    },
+    cancle: function cancle() {
+      this.avatar = this.LogedUser.profile;
+      this.imagePlaced = false;
+    },
+    resetForm: function resetForm() {
+      this.LogedUser = Object.assign({}, this.defaultForm);
+      this.$refs.LogedUser.reset();
+    },
+    update: function update() {
+      var _this3 = this;
+
+      axios.patch('/users/' + this.LogedUser.id, this.$data.LogedUser).then(function (response) {
+        // console.log(response);
+        _this3.loader = false;
+        _this3.close;
+        _this3.resetForm();
+        _this3.$emit('closeRequest');
+        _this3.$emit('alertRequest');
+      }).catch(function (error) {
+        _this3.errors = error.response.data.errors;
+        _this3.loader = false;
+      });
+    }
+  },
+  mounted: function mounted() {
+    var _this4 = this;
+
+    this.loader = true;
+    axios.post('getLogedinUsers').then(function (response) {
+      _this4.LogedUser = response.data;
+      _this4.avatar = response.data.profile;
+      _this4.loader = false;
+    }).catch(function (error) {
+      _this4.errors = error.response.data.errors;
+      _this4.loader = false;
+    });
+  },
+
+
+  computed: {
+    formIsValid: function formIsValid() {
+      return this.LogedUser.name && this.LogedUser.email && this.LogedUser.phone && this.LogedUser.password && this.LogedUser.zipcode && this.LogedUser.branch && this.LogedUser.address && this.LogedUser.city && this.LogedUser.country;
+    }
+  }
+});
+
+/***/ }),
+/* 106 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var render = function() {
+  var _vm = this
+  var _h = _vm.$createElement
+  var _c = _vm._self._c || _h
+  return _c(
+    "div",
+    [
+      _c(
+        "v-content",
+        [
+          _c(
+            "div",
+            {
+              directives: [
+                {
+                  name: "show",
+                  rawName: "v-show",
+                  value: _vm.loader,
+                  expression: "loader"
+                }
+              ],
+              staticStyle: { "text-align": "center", width: "100%" }
+            },
+            [
+              _c("v-progress-circular", {
+                staticStyle: { margin: "1rem" },
+                attrs: { width: 3, indeterminate: "", color: "red" }
+              })
+            ],
+            1
+          ),
+          _vm._v(" "),
+          _c(
+            "v-container",
+            {
+              directives: [
+                {
+                  name: "show",
+                  rawName: "v-show",
+                  value: !_vm.loader,
+                  expression: "!loader"
+                }
+              ],
+              attrs: { fluid: "", "fill-height": "" }
+            },
+            [
+              _c(
+                "v-layout",
+                { attrs: { "justify-center": "", "align-center": "" } },
+                [
+                  _c(
+                    "v-layout",
+                    { attrs: { row: "", wrap: "" } },
+                    [
+                      _c(
+                        "v-flex",
+                        { attrs: { xs12: "", sm4: "" } },
+                        [
+                          _c(
+                            "v-card",
+                            [
+                              _c("img", {
+                                staticStyle: {
+                                  width: "100px",
+                                  height: "100px",
+                                  "border-radius": "50%",
+                                  "text-align": "center"
+                                },
+                                attrs: { src: _vm.avatar }
+                              }),
+                              _vm._v(" "),
+                              _c("v-divider"),
+                              _vm._v(" "),
+                              _c(
+                                "h6",
+                                {
+                                  staticClass: "text-center",
+                                  attrs: { color: "green" }
+                                },
+                                [_vm._v("Admin")]
+                              ),
+                              _vm._v(" "),
+                              _c("v-btn", [_vm._v("Change image")]),
+                              _vm._v(" "),
+                              _c("input", {
+                                attrs: { type: "file", accept: "image/*" },
+                                on: { change: _vm.Getimage }
+                              }),
+                              _vm._v(" "),
+                              _c("img", {
+                                directives: [
+                                  {
+                                    name: "show",
+                                    rawName: "v-show",
+                                    value: _vm.imagePlaced,
+                                    expression: "imagePlaced"
+                                  }
+                                ],
+                                staticStyle: {
+                                  width: "200px",
+                                  height: "200px"
+                                },
+                                attrs: { src: _vm.avatar }
+                              }),
+                              _vm._v(" "),
+                              _c(
+                                "v-btn",
+                                {
+                                  directives: [
+                                    {
+                                      name: "show",
+                                      rawName: "v-show",
+                                      value: _vm.imagePlaced,
+                                      expression: "imagePlaced"
+                                    }
+                                  ],
+                                  on: { click: _vm.upload }
+                                },
+                                [_vm._v("Upload")]
+                              ),
+                              _vm._v(" "),
+                              _c(
+                                "v-btn",
+                                {
+                                  directives: [
+                                    {
+                                      name: "show",
+                                      rawName: "v-show",
+                                      value: _vm.imagePlaced,
+                                      expression: "imagePlaced"
+                                    }
+                                  ],
+                                  on: { click: _vm.cancle }
+                                },
+                                [_vm._v("Cancle")]
+                              )
+                            ],
+                            1
+                          )
+                        ],
+                        1
+                      ),
+                      _vm._v(" "),
+                      _c(
+                        "v-flex",
+                        { attrs: { xs12: "", sm7: "", "offset-sm1": "" } },
+                        [
+                          _c(
+                            "v-card",
+                            { attrs: { flat: "" } },
+                            [
+                              _c(
+                                "v-snackbar",
+                                {
+                                  attrs: {
+                                    absolute: "",
+                                    top: "",
+                                    right: "",
+                                    color: "black"
+                                  },
+                                  model: {
+                                    value: _vm.snackbar,
+                                    callback: function($$v) {
+                                      _vm.snackbar = $$v
+                                    },
+                                    expression: "snackbar"
+                                  }
+                                },
+                                [
+                                  _c("span", [_vm._v("Details updated")]),
+                                  _vm._v(" "),
+                                  _c("v-icon", { attrs: { dark: "" } }, [
+                                    _vm._v("check_circle")
+                                  ])
+                                ],
+                                1
+                              ),
+                              _vm._v(" "),
+                              _c(
+                                "v-form",
+                                {
+                                  ref: "form",
+                                  on: {
+                                    submit: function($event) {
+                                      $event.preventDefault()
+                                      return _vm.submit($event)
+                                    }
+                                  }
+                                },
+                                [
+                                  _c(
+                                    "v-container",
+                                    {
+                                      attrs: { "grid-list-xl": "", fluid: "" }
+                                    },
+                                    [
+                                      _c(
+                                        "v-layout",
+                                        { attrs: { wrap: "" } },
+                                        [
+                                          _c(
+                                            "v-flex",
+                                            { attrs: { xs12: "", sm6: "" } },
+                                            [
+                                              _c("v-text-field", {
+                                                attrs: {
+                                                  rules: _vm.rules.name,
+                                                  color: "purple darken-2",
+                                                  label: "Full name",
+                                                  required: ""
+                                                },
+                                                model: {
+                                                  value: _vm.LogedUser.name,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.LogedUser,
+                                                      "name",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression: "LogedUser.name"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "v-flex",
+                                            { attrs: { xs12: "", sm6: "" } },
+                                            [
+                                              _c("v-text-field", {
+                                                attrs: {
+                                                  rules: _vm.emailRules,
+                                                  color: "blue darken-2",
+                                                  label: "Email",
+                                                  required: ""
+                                                },
+                                                model: {
+                                                  value: _vm.LogedUser.email,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.LogedUser,
+                                                      "email",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression: "LogedUser.email"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "v-flex",
+                                            { attrs: { xs12: "", sm6: "" } },
+                                            [
+                                              _c("v-text-field", {
+                                                staticClass:
+                                                  "input-group--focused",
+                                                attrs: {
+                                                  "append-icon": _vm.e1
+                                                    ? "visibility_off"
+                                                    : "visibility",
+                                                  "append-icon-cb": function() {
+                                                    return (_vm.e1 = !_vm.e1)
+                                                  },
+                                                  type: _vm.e1
+                                                    ? "password"
+                                                    : "text",
+                                                  name: "input-10-2",
+                                                  label: "Enter your password",
+                                                  hint: "At least 8 characters",
+                                                  min: "8",
+                                                  value: ""
+                                                },
+                                                model: {
+                                                  value: _vm.LogedUser.password,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.LogedUser,
+                                                      "password",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression:
+                                                    "LogedUser.password"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "v-flex",
+                                            { attrs: { xs12: "", sm6: "" } },
+                                            [
+                                              _c("v-text-field", {
+                                                attrs: {
+                                                  rules: _vm.rules.name,
+                                                  color: "blue darken-2",
+                                                  label: "Address",
+                                                  required: ""
+                                                },
+                                                model: {
+                                                  value: _vm.LogedUser.address,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.LogedUser,
+                                                      "address",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression:
+                                                    "LogedUser.address"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "v-flex",
+                                            { attrs: { xs12: "", sm6: "" } },
+                                            [
+                                              _c("v-text-field", {
+                                                attrs: {
+                                                  rules: _vm.rules.name,
+                                                  color: "blue darken-2",
+                                                  label: "City",
+                                                  required: ""
+                                                },
+                                                model: {
+                                                  value: _vm.LogedUser.city,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.LogedUser,
+                                                      "city",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression: "LogedUser.city"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "v-flex",
+                                            { attrs: { xs12: "", sm6: "" } },
+                                            [
+                                              _c("v-text-field", {
+                                                attrs: {
+                                                  rules: _vm.rules.name,
+                                                  color: "blue darken-2",
+                                                  label: "Country",
+                                                  required: ""
+                                                },
+                                                model: {
+                                                  value: _vm.LogedUser.country,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.LogedUser,
+                                                      "country",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression:
+                                                    "LogedUser.country"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "v-flex",
+                                            { attrs: { xs12: "", sm6: "" } },
+                                            [
+                                              _c("v-text-field", {
+                                                attrs: {
+                                                  rules: _vm.rules.name,
+                                                  color: "blue darken-2",
+                                                  label: "Phone",
+                                                  required: ""
+                                                },
+                                                model: {
+                                                  value: _vm.LogedUser.phone,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.LogedUser,
+                                                      "phone",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression: "LogedUser.phone"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "v-flex",
+                                            { attrs: { xs12: "", sm6: "" } },
+                                            [
+                                              _c("v-text-field", {
+                                                attrs: {
+                                                  rules: _vm.rules.name,
+                                                  color: "blue darken-2",
+                                                  label: "Zip Code",
+                                                  required: ""
+                                                },
+                                                model: {
+                                                  value: _vm.LogedUser.zipcode,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.LogedUser,
+                                                      "zipcode",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression:
+                                                    "LogedUser.zipcode"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          ),
+                                          _vm._v(" "),
+                                          _c(
+                                            "v-flex",
+                                            { attrs: { xs12: "", sm6: "" } },
+                                            [
+                                              _c("v-text-field", {
+                                                attrs: {
+                                                  rules: _vm.rules.name,
+                                                  color: "blue darken-2",
+                                                  label: "Branch",
+                                                  required: ""
+                                                },
+                                                model: {
+                                                  value: _vm.LogedUser.branch,
+                                                  callback: function($$v) {
+                                                    _vm.$set(
+                                                      _vm.LogedUser,
+                                                      "branch",
+                                                      $$v
+                                                    )
+                                                  },
+                                                  expression: "LogedUser.branch"
+                                                }
+                                              })
+                                            ],
+                                            1
+                                          )
+                                        ],
+                                        1
+                                      )
+                                    ],
+                                    1
+                                  ),
+                                  _vm._v(" "),
+                                  _c(
+                                    "v-card-actions",
+                                    [
+                                      _c(
+                                        "v-btn",
+                                        {
+                                          attrs: { flat: "" },
+                                          on: { click: _vm.resetForm }
+                                        },
+                                        [_vm._v("reset")]
+                                      ),
+                                      _vm._v(" "),
+                                      _c("v-spacer"),
+                                      _vm._v(" "),
+                                      _c(
+                                        "v-btn",
+                                        {
+                                          attrs: {
+                                            disabled: !_vm.formIsValid,
+                                            flat: "",
+                                            color: "primary"
+                                          },
+                                          on: { click: _vm.update }
+                                        },
+                                        [_vm._v("Submit")]
+                                      )
+                                    ],
+                                    1
+                                  )
+                                ],
+                                1
+                              )
+                            ],
+                            1
+                          )
+                        ],
+                        1
+                      )
+                    ],
+                    1
+                  )
+                ],
+                1
+              )
+            ],
+            1
+          )
+        ],
+        1
+      )
+    ],
+    1
+  )
+}
+var staticRenderFns = []
+render._withStripped = true
+module.exports = { render: render, staticRenderFns: staticRenderFns }
+if (false) {
+  module.hot.accept()
+  if (module.hot.data) {
+    require("vue-hot-reload-api")      .rerender("data-v-771bf76e", module.exports)
+  }
+}
+
+/***/ }),
+/* 107 */
 /***/ (function(module, exports) {
 
 // removed by extract-text-webpack-plugin
+
+/***/ }),
+/* 108 */,
+/* 109 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var disposed = false
+function injectStyle (ssrContext) {
+  if (disposed) return
+  __webpack_require__(110)
+}
+var normalizeComponent = __webpack_require__(0)
+/* script */
+var __vue_script__ = __webpack_require__(112)
+/* template */
+var __vue_template__ = __webpack_require__(113)
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = null
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __vue_script__,
+  __vue_template__,
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+Component.options.__file = "resources\\assets\\js\\components\\view\\View.vue"
+
+/* hot reload */
+if (false) {(function () {
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), false)
+  if (!hotAPI.compatible) return
+  module.hot.accept()
+  if (!module.hot.data) {
+    hotAPI.createRecord("data-v-6b1e2255", Component.options)
+  } else {
+    hotAPI.reload("data-v-6b1e2255", Component.options)
+  }
+  module.hot.dispose(function (data) {
+    disposed = true
+  })
+})()}
+
+module.exports = Component.exports
+
+
+/***/ }),
+/* 110 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(111);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(4)("a9e82bfe", content, false, {});
+// Hot Module Replacement
+if(false) {
+ // When the styles change, update the <style> tags
+ if(!content.locals) {
+   module.hot.accept("!!../../../../../node_modules/css-loader/index.js!../../../../../node_modules/vue-loader/lib/style-compiler/index.js?{\"vue\":true,\"id\":\"data-v-6b1e2255\",\"scoped\":false,\"hasInlineConfig\":true}!../../../../../node_modules/vue-loader/lib/selector.js?type=styles&index=0!./View.vue", function() {
+     var newContent = require("!!../../../../../node_modules/css-loader/index.js!../../../../../node_modules/vue-loader/lib/style-compiler/index.js?{\"vue\":true,\"id\":\"data-v-6b1e2255\",\"scoped\":false,\"hasInlineConfig\":true}!../../../../../node_modules/vue-loader/lib/selector.js?type=styles&index=0!./View.vue");
+     if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
+     update(newContent);
+   });
+ }
+ // When the module is disposed, remove the <style> tags
+ module.hot.dispose(function() { update(); });
+}
+
+/***/ }),
+/* 111 */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(2)(false);
+// imports
+
+
+// module
+exports.push([module.i, "\n#looks{\n font-size: 120px;\n z-index: 1000;\n padding: 70px 0;\n margin: auto;\n margin-left: 390px;\n}\n.card__media__background.{\n background-attachment: fixed;\n content: woooo;\n}\n", ""]);
+
+// exports
+
+
+/***/ }),
+/* 112 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+var Details = __webpack_require__(114);
+/* harmony default export */ __webpack_exports__["default"] = ({
+  components: {
+    Details: Details
+  },
+  data: function data() {
+    return {
+      products: [],
+      loading: false,
+      details: false
+    };
+  },
+
+  methods: {
+    openDetailModal: function openDetailModal(key) {
+      console.log(this.products[key]);
+      this.$children[0].list = this.products[key];
+      this.details = true;
+    },
+    close: function close() {
+      this.details = false;
+    }
+  },
+  mounted: function mounted() {
+    var _this = this;
+
+    this.loading = true;
+
+    axios.post('getproducts').then(function (response) {
+      _this.products = response.data;
+      _this.loading = false;
+    }).catch(function (error) {
+      _this.errors = error.response.data.errors;
+      // this.loader=false
+      _this.loading = false;
+    });
+  }
+});
+
+/***/ }),
+/* 113 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var render = function() {
+  var _vm = this
+  var _h = _vm.$createElement
+  var _c = _vm._self._c || _h
+  return _c(
+    "div",
+    [
+      _c(
+        "v-app",
+        [
+          _c(
+            "v-layout",
+            [
+              _c(
+                "v-flex",
+                { attrs: { xs12: "", sm12: "" } },
+                [
+                  _c(
+                    "v-card",
+                    [
+                      _c(
+                        "v-card-media",
+                        {
+                          attrs: {
+                            src: "/storage/background/tylor.jpeg",
+                            height: "630px",
+                            width: "100%"
+                          }
+                        },
+                        [
+                          _c("h1", { attrs: { id: "looks" } }, [
+                            _c("b", [
+                              _vm._v("NEW "),
+                              _c(
+                                "span",
+                                {
+                                  staticStyle: {
+                                    color: "#0fb7a4",
+                                    "line-height": "36px"
+                                  }
+                                },
+                                [_vm._v("Looks")]
+                              )
+                            ])
+                          ])
+                        ]
+                      )
+                    ],
+                    1
+                  )
+                ],
+                1
+              )
+            ],
+            1
+          ),
+          _vm._v(" "),
+          _c(
+            "v-layout",
+            [
+              _c(
+                "v-flex",
+                { attrs: { xs12: "", sm10: "", "offset-sm1": "" } },
+                [
+                  _c(
+                    "v-layout",
+                    _vm._l(_vm.products, function(product, key) {
+                      return _c(
+                        "v-flex",
+                        { key: product.id, attrs: { xs12: "", sm3: "" } },
+                        [
+                          _c(
+                            "v-card",
+                            [
+                              _c("v-card-media", {
+                                attrs: { src: product.image, height: "200px" }
+                              }),
+                              _vm._v(" "),
+                              _c(
+                                "v-card-title",
+                                { attrs: { "primary-title": "" } },
+                                [
+                                  _c("div", [
+                                    _c("p", { staticClass: "text-danger" }, [
+                                      _vm._v("List Price:"),
+                                      _c("s", [
+                                        _vm._v(_vm._s(product.list_price))
+                                      ])
+                                    ]),
+                                    _vm._v(" "),
+                                    _c("p", [
+                                      _vm._v(
+                                        "Our Price:" + _vm._s(product.price)
+                                      )
+                                    ])
+                                  ])
+                                ]
+                              ),
+                              _vm._v(" "),
+                              _c(
+                                "v-card-actions",
+                                [
+                                  _c(
+                                    "v-btn",
+                                    {
+                                      attrs: { flat: "", color: "orange" },
+                                      on: {
+                                        click: function($event) {
+                                          _vm.openDetailModal(key)
+                                        }
+                                      }
+                                    },
+                                    [_vm._v("Details")]
+                                  )
+                                ],
+                                1
+                              )
+                            ],
+                            1
+                          )
+                        ],
+                        1
+                      )
+                    })
+                  )
+                ],
+                1
+              )
+            ],
+            1
+          )
+        ],
+        1
+      ),
+      _vm._v(" "),
+      _c("Details", {
+        attrs: { openDetail: _vm.details },
+        on: { closeRequest: _vm.close }
+      })
+    ],
+    1
+  )
+}
+var staticRenderFns = []
+render._withStripped = true
+module.exports = { render: render, staticRenderFns: staticRenderFns }
+if (false) {
+  module.hot.accept()
+  if (module.hot.data) {
+    require("vue-hot-reload-api")      .rerender("data-v-6b1e2255", module.exports)
+  }
+}
+
+/***/ }),
+/* 114 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var disposed = false
+var normalizeComponent = __webpack_require__(0)
+/* script */
+var __vue_script__ = __webpack_require__(115)
+/* template */
+var __vue_template__ = __webpack_require__(116)
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = null
+/* scopeId */
+var __vue_scopeId__ = null
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __vue_script__,
+  __vue_template__,
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+Component.options.__file = "resources\\assets\\js\\components\\view\\Details.vue"
+
+/* hot reload */
+if (false) {(function () {
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), false)
+  if (!hotAPI.compatible) return
+  module.hot.accept()
+  if (!module.hot.data) {
+    hotAPI.createRecord("data-v-00f75d42", Component.options)
+  } else {
+    hotAPI.reload("data-v-00f75d42", Component.options)
+  }
+  module.hot.dispose(function (data) {
+    disposed = true
+  })
+})()}
+
+module.exports = Component.exports
+
+
+/***/ }),
+/* 115 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["default"] = ({
+  props: ['openDetail'],
+  data: function data() {
+    return {
+      list: {},
+      snackbar: false,
+      timeout: 5000,
+      message: ''
+    };
+  },
+
+  methods: {
+    add: function add() {
+      var _this = this;
+
+      // console.log('adding...');
+      axios.post('addcart/' + this.list.id, this.$data.list).then(function (response) {
+        _this.message = 'added';
+        _this.color = 'black';
+        _this.snackbar = true;
+      }).catch(function (error) {
+        _this.errors = error.response.data.errors;
+        _this.message = 'error';
+        _this.color = 'red';
+        _this.snackbar = true;
+      });
+    },
+    close: function close() {
+      this.$emit('closeRequest');
+    }
+  }
+});
+
+/***/ }),
+/* 116 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var render = function() {
+  var _vm = this
+  var _h = _vm.$createElement
+  var _c = _vm._self._c || _h
+  return _c(
+    "v-layout",
+    { attrs: { row: "", "justify-center": "" } },
+    [
+      _c(
+        "v-dialog",
+        {
+          attrs: { persistent: "", "max-width": "800" },
+          model: {
+            value: _vm.openDetail,
+            callback: function($$v) {
+              _vm.openDetail = $$v
+            },
+            expression: "openDetail"
+          }
+        },
+        [
+          _c(
+            "v-card",
+            [
+              _c(
+                "v-flex",
+                { attrs: { sm10: "" } },
+                [
+                  _c("v-card-title", { staticClass: "headline" }, [
+                    _vm._v(_vm._s(_vm.list.title))
+                  ]),
+                  _vm._v(" "),
+                  _c("v-divider"),
+                  _vm._v(" "),
+                  _c(
+                    "v-layout",
+                    { attrs: { row: "" } },
+                    [
+                      _c(
+                        "v-flex",
+                        { attrs: { sm5: "", "offset-sm1": "" } },
+                        [
+                          _c("v-card-media", {
+                            attrs: { src: _vm.list.image, height: "400px" }
+                          })
+                        ],
+                        1
+                      ),
+                      _vm._v(" "),
+                      _c(
+                        "v-flex",
+                        { attrs: { sm5: "", "offset-sm1": "" } },
+                        [
+                          _vm._v("\n          Details\n          "),
+                          _c("p", [_vm._v(_vm._s(_vm.list.description))]),
+                          _vm._v(" "),
+                          _c("v-divider"),
+                          _vm._v(" "),
+                          _c("p", [_vm._v("Price: " + _vm._s(_vm.list.price))])
+                        ],
+                        1
+                      )
+                    ],
+                    1
+                  ),
+                  _vm._v(" "),
+                  _c(
+                    "v-card-actions",
+                    [
+                      _c("v-spacer"),
+                      _vm._v(" "),
+                      _c(
+                        "v-btn",
+                        {
+                          attrs: { color: "green darken-1", flat: "flat" },
+                          nativeOn: {
+                            click: function($event) {
+                              return _vm.close($event)
+                            }
+                          }
+                        },
+                        [_vm._v("Close")]
+                      ),
+                      _vm._v(" "),
+                      _c(
+                        "v-btn",
+                        {
+                          attrs: { flat: "", color: "orange", dark: "" },
+                          on: { click: _vm.add }
+                        },
+                        [
+                          _c("v-icon", [_vm._v("shopping_cart ")]),
+                          _vm._v("Add Cart")
+                        ],
+                        1
+                      )
+                    ],
+                    1
+                  )
+                ],
+                1
+              )
+            ],
+            1
+          ),
+          _vm._v(" "),
+          _c(
+            "v-snackbar",
+            {
+              attrs: { timeout: _vm.timeout, bottom: "", left: "" },
+              model: {
+                value: _vm.snackbar,
+                callback: function($$v) {
+                  _vm.snackbar = $$v
+                },
+                expression: "snackbar"
+              }
+            },
+            [
+              _vm._v("\n      " + _vm._s(_vm.message) + "\n      "),
+              _c(
+                "v-btn",
+                {
+                  attrs: { flat: "", color: "white" },
+                  nativeOn: {
+                    click: function($event) {
+                      _vm.snackbar = false
+                    }
+                  }
+                },
+                [_vm._v("Close")]
+              )
+            ],
+            1
+          )
+        ],
+        1
+      )
+    ],
+    1
+  )
+}
+var staticRenderFns = []
+render._withStripped = true
+module.exports = { render: render, staticRenderFns: staticRenderFns }
+if (false) {
+  module.hot.accept()
+  if (module.hot.data) {
+    require("vue-hot-reload-api")      .rerender("data-v-00f75d42", module.exports)
+  }
+}
 
 /***/ })
 /******/ ]);

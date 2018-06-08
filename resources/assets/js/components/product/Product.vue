@@ -7,26 +7,21 @@
         <span class="headline">Add Product</span>
       </v-card-title>
       <v-card-text>
-        <v-form ref="form" @submit.prevent>
+        <v-flex xs12 sm4>
           <v-container grid-list-xl fluid>
             <v-layout wrap>
               <v-btn color="red" darken-1 raised @click="onPickFile" style="color: #fff;">Upload</v-btn>
-              <input type="file" @change="Getimage" accept="image/*" style="display: none" ref="fileInput" name="image">
-              <img v-show="imagePlaced" :src="avatar" style="width: 200px; height: 200px;">
+              <input type="file" @change="Getimage" accept="image/*" style="display: none" ref="fileInput">
+              <img v-show="imagePlaced" :src="avatar" style="width: 300px; height: 240px;">
               <v-btn v-show="imagePlaced" class="primary" raised @click="cancle">Cancle</v-btn>
-              <v-btn class="primary" raised @click.prevent="upload">Upload</v-btn>
             </v-layout>
           </v-container>
           <v-card-actions>
-            <v-btn flat @click="resetForm">Close</v-btn>
+            <v-btn flat @click="close">Close</v-btn>
+            <v-btn flat @click="upload">Upload</v-btn>
             <v-spacer></v-spacer>
-            <!-- <v-btn
-            flat
-            color="primary"
-            @click="upload"
-            >Add</v-btn> -->
           </v-card-actions>
-        </v-form>
+        </v-flex>
       </v-card-text>
     </v-card>
   </v-dialog>
@@ -202,6 +197,7 @@ export default {
       search: '',
       errors: {},
       avatar: '',
+      Allpros: [],
       image: null,
       imagedialog: false,
       editedItem: {
@@ -229,11 +225,6 @@ export default {
     }
   },
   methods: {
-    resetForm () {
-      this.form = Object.assign({}, this.defaultForm)
-      this.$refs.form.reset()
-      this.close()
-    },
     // Image Upload
     onPickFile() {
       this.$refs.fileInput.click()
@@ -252,7 +243,6 @@ export default {
       fileReader.readAsDataURL(files[0])
       this.image = files[0]
     },
-    
     Getimage(e) {
       let image = e.target.files[0];
       // this.read(image);
@@ -261,7 +251,7 @@ export default {
       reader.onload = e => {
         this.avatar = e.target.result
       }
-      // this.imagePlaced = true
+      this.imagePlaced = true
       let form = new FormData();
       form.append('image', image);
       this.file = form
@@ -269,9 +259,7 @@ export default {
     },
 
     upload() {
-      // console.log(this.image);
-      console.log(this.$data.image);
-      axios.post(`/prodImage/${this.imageAdd.id}`, this.$data.file)
+      axios.post(`/productimg/${this.imageAdd.id}`, this.file)
       .then((response) => {
         console.log(response);
         this.imagePlaced = false;
@@ -280,10 +268,9 @@ export default {
         this.snackbar = true;
         // this.close()
       })
-
     },
     cancle() {
-      this.imageAdd.avatar = ''
+      this.avatar = '';
       this.imagePlaced = false;
     },
     openAddModal() {
@@ -395,6 +382,15 @@ export default {
     axios.post('getsubcategories')
     .then((response) => {
       this.subcats = response.data
+    })
+    .catch((error) => {
+        this.errors = error.response.data.errors
+    })
+
+
+    axios.post('getprod')
+    .then((response) => {
+      this.Allpros = response.data
     })
     .catch((error) => {
         this.errors = error.response.data.errors

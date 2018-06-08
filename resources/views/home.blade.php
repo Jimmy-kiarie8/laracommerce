@@ -8,13 +8,22 @@
                 <div class="card-header">Dashboard</div>
 
                 <div class="card-body">
-                    @if (session('status'))
-                        <div class="alert alert-success">
-                            {{ session('status') }}
-                        </div>
+                    {{-- {{$products}} --}}
+                    {{-- <form action="{{ route('addcart', ['id']) }}" method="post">
+                        <input type="text" name="price">
+                        <input type="text" name="qty">
+                        <input type="submit" value="add">
+                    </form> --}}
+                    @if (Session::has('user'))
+                        @foreach ($products as $product)
+                            <li class="list-group">
+                                <span class="badge"> {{ $product['qty'] }} </span>
+                                <strong> {{ $product['price'] }} </strong>
+                            </li>
+                        @endforeach
+                    @else
+                    no cart
                     @endif
-
-                    You are logged in!
                 </div>
             </div>
         </div>

@@ -87,11 +87,21 @@ class ProductController extends Controller
     public function getproducts()
     {
         // $products = Product::all();
-        $products = DB::table('products')
+       /* $products = DB::table('products')
+            ->select('products.id as product_id')
             ->leftJoin('brands', 'products.brand_id', '=', 'brands.id')
             ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
             // ->leftJoin('subcats', 'products.sub_id', '=', 'subcats.id')
             ->get();
+        return json_decode(json_encode($products), true);*/
+        return Product::with(['brand', 'category'])->get();
+        // return Product::find(1)->brand->brand_name;
+
+    }
+
+    public function getprod()
+    {
+        $products = Product::all();
         return json_decode(json_encode($products), true);
     }
 

@@ -30,16 +30,20 @@ Vue.use(VueRouter)
 
 
 
-let myView = require('./components/View.vue');
+let myView = require('./components/view/View.vue');
 let myBrand = require('./components/brand/Brand.vue');
 let myCategory = require('./components/category/Category.vue');
 let myProduct = require('./components/product/Product.vue');
+let myUsers = require('./components/users/User.vue');
+let myprofile = require('./components/users/Profile.vue');
 
 const routes = [
 	{path: '/', component: myView },
 	{path: '/brands', component: myBrand },
 	{path: '/categories', component: myCategory },
-	{path: '/products', component: myProduct },
+    {path: '/products', component: myProduct },
+    {path: '/users', component: myUsers },
+	{path: '/profile', component: myprofile },
 ]
 
 const router = new VueRouter({
@@ -51,6 +55,6 @@ const app = new Vue({
     el: '#app',
     router,
     components: {
-    	myView, myBrand, myCategory, myProduct
+    	myView, myBrand, myCategory, myProduct, myUsers, myprofile
     },
 });

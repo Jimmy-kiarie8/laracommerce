@@ -34,6 +34,23 @@
                   </div>
               </div>
           </router-link>
+                <router-link to="/users" class="list__tile list__tile--link">{{-- 
+                  <div class="list__tile__action"><i aria-hidden="true" class="icon material-icons">home</i></div> --}}
+                  <div class="list__tile__content">
+                    <div class="list__tile__title">
+                      Users
+                  </div>
+              </div>
+          </router-link>
+
+                <router-link to="/profile" class="list__tile list__tile--link">{{-- 
+                  <div class="list__tile__action"><i aria-hidden="true" class="icon material-icons">home</i></div> --}}
+                  <div class="list__tile__content">
+                    <div class="list__tile__title">
+                      Profiles
+                  </div>
+              </div>
+          </router-link>
 
             </ul>
 
